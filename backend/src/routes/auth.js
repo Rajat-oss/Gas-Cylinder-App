@@ -59,7 +59,7 @@ router.post('/login', async (req, res) => {
         const token = jwt.sign(
             { id: user.id, role: user.role },
             process.env.JWT_SECRET || 'gasflow_default_secret',
-            { expiresIn: '24h' }
+            { expiresIn: '7d' }
         );
 
         // Update online status on login

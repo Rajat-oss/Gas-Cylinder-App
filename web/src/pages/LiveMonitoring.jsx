@@ -160,8 +160,10 @@ const LiveMonitoring = () => {
             setDrivers(activeDrivers);
 
             // Update markers on map
+            const onlineDriverIds = new Set();
             activeDrivers.forEach(driver => {
-                if (driver.latitude && driver.longitude) {
+                if (driver.isOnline && driver.latitude && driver.longitude) {
+                    onlineDriverIds.add(driver.id);
                     const coords = [driver.latitude, driver.longitude];
                     
                     if (markersRef.current[driver.id]) {
@@ -183,6 +185,14 @@ const LiveMonitoring = () => {
                     }
                 }
             });
+
+            // Remove markers for drivers who are no longer online
+            Object.keys(markersRef.current).forEach(id => {
+                if (!onlineDriverIds.has(id)) {
+                    markersRef.current[id].remove();
+                    delete markersRef.current[id];
+                }
+            });
         } catch (err) {
             console.error(err);
         } finally {
@@ -192,7 +202,7 @@ const LiveMonitoring = () => {
 
     useEffect(() => {
         fetchDrivers();
-        const interval = setInterval(fetchDrivers, 10000); // 10s Live Refresh
+        const interval = setInterval(fetchDrivers, 5000); // 5s Live Refresh for tighter tracking
         return () => clearInterval(interval);
     }, []);
 
@@ -279,12 +289,11 @@ const LiveMonitoring = () => {
                 </form>
             </div>
 
-            {/* Drivers Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {drivers.map(driver => (
+                {drivers.filter(d => d.isOnline).map(driver => (
                     <DriverStatusCard key={driver.id} driver={driver} onFocus={handleFocusDriver} />
                 ))}
-                {drivers.length === 0 && !loading && (
+                {drivers.filter(d => d.isOnline).length === 0 && !loading && (
                     <div className="col-span-full py-24 text-center bg-slate-900/40 border border-dashed border-slate-800 rounded-[2.5rem] backdrop-blur-sm">
                         <Truck size={64} className="mx-auto text-slate-800 mb-6 animate-bounce" />
                         <h3 className="text-2xl font-black text-slate-700 uppercase tracking-widest">No Active Drivers</h3>

@@ -38,8 +38,8 @@ const LocationTracker = () => {
             // Initial update
             updateLocation();
 
-            // Set interval for continuous updates (every 30 seconds for live monitoring)
-            intervalId = setInterval(updateLocation, 30000);
+            // Set interval for continuous updates (every 15 seconds for live monitoring)
+            intervalId = setInterval(updateLocation, 15000);
         };
 
         startTracking();

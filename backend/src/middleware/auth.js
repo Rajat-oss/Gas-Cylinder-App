@@ -13,13 +13,25 @@ const authenticateToken = (req, res, next) => {
         req.user = decoded;
         next();
     } catch (error) {
-        res.status(403).json({ message: 'Invalid or expired token.' });
+        if (error.name === 'TokenExpiredError') {
+            console.log('User session expired');
+        } else {
+            console.error('Authentication Error:', error.message);
+        }
+        res.status(401).json({ message: 'Session expired. Please login again.' });
     }
 };
 
 const authorizeRoles = (...roles) => {
     return (req, res, next) => {
-        if (!roles.includes(req.user.role)) {
+        if (!req.user || !req.user.role) {
+            return res.status(403).json({ message: 'Forbidden: No role found in token.' });
+        }
+
+        const userRole = req.user.role.toUpperCase();
+        const allowedRoles = roles.map(r => r.toUpperCase());
+
+        if (!allowedRoles.includes(userRole)) {
             return res.status(403).json({ message: 'Forbidden: Insufficient permissions.' });
         }
         next();
