@@ -27,30 +27,74 @@ router.get('/', authenticateToken, authorizeRoles('ADMIN', 'MANAGER'), async (re
     }
 });
 
+// Get orders assigned to current driver
+router.get('/my-tasks', authenticateToken, async (req, res) => {
+    try {
+        const orders = await prisma.order.findMany({
+            where: {
+                assignedStaffId: req.user.id
+            },
+            orderBy: {
+                createdAt: 'desc'
+            }
+        });
+        res.json(orders);
+    } catch (error) {
+        console.error('Fetch driver tasks error:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
 // Create order (Admin/Manager)
 router.post('/', authenticateToken, authorizeRoles('ADMIN', 'MANAGER'), async (req, res) => {
     try {
-        const { customerName, customerAddress, customerPhone, cylinderType, assignedStaffId } = req.body;
+        console.log('Order creation request body:', req.body);
+        const { customerName, customerAddress, customerPhone, cylinderType, quantity, assignedStaffId } = req.body;
         const newOrder = await prisma.order.create({
             data: {
                 customerName,
                 customerAddress,
                 customerPhone,
                 cylinderType,
+                quantity: quantity ? parseInt(quantity) : 1,
                 assignedStaffId
             }
         });
+
+        // Real-time update via Socket.io
+        try {
+            const { getIO } = require('../lib/socket');
+            getIO().emit('newOrder', newOrder);
+        } catch (err) {
+            console.error('Socket emit error (New Order):', err.message);
+        }
+
         res.status(201).json(newOrder);
     } catch (error) {
         console.error('Create order error:', error);
-        res.status(500).json({ message: 'Internal server error' });
+        res.status(500).json({ message: 'Internal server error', error: error.message });
     }
 });
 
-// Update order status/assigned staff (Admin/Manager)
-router.patch('/:id', authenticateToken, authorizeRoles('ADMIN', 'MANAGER'), async (req, res) => {
+// Update order status/assigned staff (Admin/Manager/Driver)
+router.patch('/:id', authenticateToken, async (req, res) => {
     try {
         const { status, assignedStaffId } = req.body;
+
+        // Find existing order
+        const existingOrder = await prisma.order.findUnique({
+            where: { id: req.params.id }
+        });
+
+        if (!existingOrder) {
+            return res.status(404).json({ message: 'Order not found' });
+        }
+
+        // If user is driver, verify ownership
+        if (req.user.role === 'DRIVER' && existingOrder.assignedStaffId !== req.user.id) {
+            return res.status(403).json({ message: 'Forbidden: You can only update your own assigned tasks.' });
+        }
+
         const updatedOrder = await prisma.order.update({
             where: { id: req.params.id },
             data: {

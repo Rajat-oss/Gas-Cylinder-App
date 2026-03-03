@@ -1,0 +1,14 @@
+
+D:\project\internship project\gas cylinder app\driver app\mobile\.expo\types\router.d.ts
+  1:1  warning  Unused eslint-disable directive (no problems were reported)
+
+D:\project\internship project\gas cylinder app\driver app\mobile\app\(tabs)\summary.tsx
+  18:12  warning  'loading' is assigned a value but never used     @typescript-eslint/no-unused-vars
+  18:21  warning  'setLoading' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+D:\project\internship project\gas cylinder app\driver app\mobile\components\AppMap.web.tsx
+  60:8  warning  React Hook useMemo has an unnecessary dependency: 'libLoaded'. Either exclude it or remove the dependency array  react-hooks/exhaustive-deps
+
+Γ£û 4 problems (0 errors, 4 warnings)
+  0 errors and 1 warning potentially fixable with the `--fix` option.
+

@@ -10,7 +10,12 @@ const inventoryRoutes = require('./routes/inventory');
 const dashboardRoutes = require('./routes/dashboard');
 const adminRoutes = require('./routes/admin');
 
+const { createServer } = require('http');
+const { initSocket } = require('./lib/socket');
+
 const app = express();
+const httpServer = createServer(app);
+const io = initSocket(httpServer);
 const PORT = process.env.PORT || 5000;
 
 app.use(cors());
@@ -29,6 +34,6 @@ app.get('/health', (req, res) => {
     res.json({ status: 'ok', message: 'GasFlow Backend is running' });
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server is running on http://127.0.0.1:${PORT}`);
+httpServer.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server is running with Socket.io on http://127.0.0.1:${PORT}`);
 });

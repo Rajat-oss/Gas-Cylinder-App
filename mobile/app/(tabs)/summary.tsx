@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
-    Dimensions,
     SafeAreaView,
     ScrollView,
     StyleSheet,
@@ -13,20 +12,18 @@ import { SummaryCard } from '../../components/SummaryCard';
 import { Colors } from '../../constants/Colors';
 import { Delivery, mockApiService } from '../../services/mockApi';
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
 
 export default function SummaryScreen() {
     const [deliveries, setDeliveries] = useState<Delivery[]>([]);
-    const [loading, setLoading] = useState(true);
+
+    const fetchData = React.useCallback(async () => {
+        const data = await mockApiService.getDeliveries();
+        setDeliveries(data);
+    }, []);
 
     useEffect(() => {
-        const fetchData = async () => {
-            const data = await mockApiService.getDeliveries();
-            setDeliveries(data);
-            setLoading(false);
-        };
         fetchData();
-    }, []);
+    }, [fetchData]);
 
     const stats = {
         total: deliveries.filter(d => d.deliveryStatus === 'Delivered').length,
@@ -59,7 +56,7 @@ export default function SummaryScreen() {
                                 <View
                                     style={[
                                         styles.bar,
-                                        { height: (data.value / maxVal) * 120 }
+                                        { height: maxVal > 0 ? (data.value / maxVal) * 120 : 0 }
                                     ]}
                                 />
                                 <Text style={styles.barLabel}>{data.label}</Text>

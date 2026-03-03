@@ -2,6 +2,7 @@ import { AlertTriangle, ArrowDownCircle, ArrowUpCircle, Info, Minus, Package, Pl
 import { useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import api from '../services/api';
+import socketService from '../services/socket';
 
 const StockCard = ({ title, count, type, threshold = 10 }) => {
   const isLow = count < threshold;
@@ -65,6 +66,31 @@ const Inventory = () => {
 
   useEffect(() => {
     fetchStock();
+
+    // Socket listeners for real-time updates
+    const socket = socketService.connect();
+
+    socket.on('inventoryUpdate', (updated) => {
+      console.log('Stock update received:', updated);
+      
+      setStocks(prevStocks => 
+        prevStocks.map(item => 
+          item.type === updated.cylinderType 
+            ? { ...item, full: updated.stockLevel } 
+            : item
+        )
+      );
+
+      toast.success(`${updated.cylinderType} stock was updated elsewhere`, {
+        icon: '🔄',
+        duration: 3000
+      });
+    });
+
+    return () => {
+      socket.off('inventoryUpdate');
+      // No need to disconnect here if socket is reused by other components
+    };
   }, []);
 
   const handleAdjustStock = (id, stockType) => {
@@ -91,7 +117,13 @@ const Inventory = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold text-white uppercase tracking-tight">Inventory Tracking</h2>
-          <p className="text-slate-400 mt-1">Real-time stock of full and empty cylinders</p>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <p className="text-slate-400 text-sm italic">Real-time stock monitoring active</p>
+          </div>
         </div>
         <button className="bg-slate-800 hover:bg-slate-700 text-white font-bold px-6 py-3 rounded-2xl flex items-center gap-2 transition-all border border-slate-700">
           <RefreshCw size={18} />

@@ -9,7 +9,7 @@ router.get('/', authenticateToken, authorizeRoles('ADMIN', 'MANAGER'), async (re
         const staff = await prisma.user.findMany({
             where: {
                 role: {
-                    in: ['STAFF', 'DRIVER']
+                    in: ['STAFF', 'DRIVER', 'MANAGER']
                 }
             },
             include: {
@@ -33,6 +33,14 @@ router.get('/', authenticateToken, authorizeRoles('ADMIN', 'MANAGER'), async (re
                 return sum + orderSum;
             }, 0);
 
+            const isActuallyOnline = !!(u.isOnline && u.lastSeen && (new Date() - new Date(u.lastSeen) < 120000));
+            const hasActiveOrders = u.orders.some(o => o.status === 'PENDING' || o.status === 'OUT_FOR_DELIVERY');
+
+            let status = 'Offline';
+            if (isActuallyOnline) {
+                status = hasActiveOrders ? 'On Field' : 'Active';
+            }
+
             return {
                 id: u.id,
                 name: u.name,
@@ -43,7 +51,8 @@ router.get('/', authenticateToken, authorizeRoles('ADMIN', 'MANAGER'), async (re
                 licenseNumber: u.licenseNumber,
                 latitude: u.latitude,
                 longitude: u.longitude,
-                isOnline: !!(u.isOnline && u.lastSeen && (new Date() - new Date(u.lastSeen) < 60000)), // 60s threshold for tighter real-time tracking
+                isOnline: isActuallyOnline,
+                status,
                 lastSeen: u.lastSeen,
                 createdAt: u.createdAt,
                 totalOrders: u.orders.length,
@@ -89,6 +98,38 @@ router.post('/', authenticateToken, authorizeRoles('ADMIN'), async (req, res) =>
         res.status(201).json({ message: 'Staff member added successfully' });
     } catch (error) {
         console.error('Add staff error:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
+// Update staff (Admin Only)
+router.put('/:id', authenticateToken, authorizeRoles('ADMIN'), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, email, password, role, phone, vehicleNumber, licenseNumber } = req.body;
+
+        const data = {
+            name,
+            email,
+            role,
+            phone,
+            vehicleNumber,
+            licenseNumber
+        };
+
+        if (password) {
+            const bcrypt = require('bcryptjs');
+            data.password = await bcrypt.hash(password, 10);
+        }
+
+        await prisma.user.update({
+            where: { id },
+            data
+        });
+
+        res.json({ message: 'Staff member updated successfully' });
+    } catch (error) {
+        console.error('Update staff error:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 });

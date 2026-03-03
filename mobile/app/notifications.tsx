@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Stack, useRouter } from 'expo-router';
+import { Stack } from 'expo-router';
 import React from 'react';
 import {
     FlatList,
@@ -23,8 +23,6 @@ interface Notification {
 const mockNotifications: Notification[] = [];
 
 export default function NotificationsScreen() {
-    const router = useRouter();
-
     const getIcon = (type: Notification['type']) => {
         switch (type) {
             case 'assignment': return { name: 'document-text', color: Colors.primary };

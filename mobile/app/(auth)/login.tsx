@@ -29,7 +29,7 @@ export default function LoginScreen() {
         }
 
         setLoading(true);
-        const success = await login(email, password);
+        await login(email, password);
         setLoading(false);
     };
 
@@ -96,7 +96,7 @@ export default function LoginScreen() {
                     </View>
 
                     <View style={styles.footer}>
-                        <Text style={styles.footerText}>Contact admin if you don't have an account</Text>
+                        <Text style={styles.footerText}>Contact admin if you don{"'"}t have an account</Text>
                     </View>
                 </View>
             </KeyboardAvoidingView>

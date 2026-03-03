@@ -15,37 +15,93 @@ import {
 } from 'react-native';
 import { DeliveryCard } from '../../components/DeliveryCard';
 import { Colors } from '../../constants/Colors';
-import { Delivery, mockApiService } from '../../services/mockApi';
+import { useAuth } from '../../context/AuthContext';
+import { Delivery, deliveryService } from '../../services/deliveryService';
+import socketService from '../../services/socket';
 
 export default function DeliveriesScreen() {
     const router = useRouter();
-    const [deliveries, setDeliveries] = useState<Delivery[]>([]);
+    const { user } = useAuth();
+    const [deliveries, setDeliveries] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
-    const fetchData = async () => {
+    const mapDeliveryData = (data: Delivery[]) => {
+        return data.map(d => ({
+            id: d.id,
+            customerName: d.customerName,
+            address: d.customerAddress,
+            cylinderType: d.cylinderType,
+            contactNumber: d.customerPhone || '',
+            paymentStatus: d.status === 'DELIVERED' ? 'Paid' : 'Pending',
+            deliveryStatus: d.status === 'PENDING' ? 'Assigned' :
+                d.status === 'OUT_FOR_DELIVERY' ? 'Out for Delivery' :
+                    d.status === 'DELIVERED' ? 'Delivered' : 'Cancelled',
+            amount: 0, // Backend might need to provide this, or calculate based on type
+        }));
+    };
+
+    const fetchData = useCallback(async () => {
         try {
-            const data = await mockApiService.getDeliveries();
-            setDeliveries(data);
+            const data = await deliveryService.getDeliveries();
+            // Filter by assigned staff if it's a driver
+            const myDeliveries = data.filter(d => d.assignedStaffId === user?.id);
+            setDeliveries(mapDeliveryData(myDeliveries));
         } catch (error) {
+            console.error('Fetch error:', error);
             Alert.alert('Error', 'Failed to load deliveries');
         } finally {
             setLoading(false);
         }
-    };
+    }, [user?.id]);
 
     useEffect(() => {
         fetchData();
-    }, []);
+
+        const socket = socketService.connect();
+
+        const handleConnect = () => { };
+        const handleDisconnect = () => { };
+        const handleNewOrder = (newOrder: Delivery) => {
+            if (newOrder.assignedStaffId === user?.id) {
+                setDeliveries(prev => {
+                    if (prev.some(d => d.id === newOrder.id)) return prev;
+                    const mapped = {
+                        id: newOrder.id,
+                        customerName: newOrder.customerName,
+                        address: newOrder.customerAddress,
+                        cylinderType: newOrder.cylinderType,
+                        contactNumber: newOrder.customerPhone || '',
+                        paymentStatus: 'Pending',
+                        deliveryStatus: 'Assigned',
+                        amount: 0
+                    };
+                    return [mapped, ...prev];
+                });
+                Alert.alert('New Task!', 'You have been assigned a new delivery task.');
+            }
+        };
+
+        socket.on('newOrder', handleNewOrder);
+
+        return () => {
+            socket.off('connect', handleConnect);
+            socket.off('disconnect', handleDisconnect);
+            socket.off('newOrder', handleNewOrder);
+        };
+    }, [user?.id, fetchData]);
 
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
         await fetchData();
         setRefreshing(false);
-    }, []);
+    }, [fetchData]);
 
-    const handleUpdateStatus = async (id: string, status: Delivery['deliveryStatus']) => {
-        if (status === 'Cancelled') {
+    const handleUpdateStatus = async (id: string, statusText: string) => {
+        const backendStatus = statusText === 'Out for Delivery' ? 'OUT_FOR_DELIVERY' :
+            statusText === 'Cancelled' ? 'CANCELLED' : 'DELIVERED';
+
+        if (backendStatus === 'CANCELLED') {
             Alert.alert(
                 'Cancel Delivery',
                 'Are you sure you want to cancel this delivery?',
@@ -55,7 +111,7 @@ export default function DeliveriesScreen() {
                         text: 'Yes, Cancel',
                         style: 'destructive',
                         onPress: async () => {
-                            await mockApiService.updateDeliveryStatus(id, 'Cancelled');
+                            await deliveryService.updateDeliveryStatus(id, 'CANCELLED');
                             setDeliveries(prev => prev.map(d => d.id === id ? { ...d, deliveryStatus: 'Cancelled' } : d));
                         }
                     }
@@ -64,15 +120,15 @@ export default function DeliveriesScreen() {
             return;
         }
 
-        await mockApiService.updateDeliveryStatus(id, status);
-        setDeliveries(prev => prev.map(d => d.id === id ? { ...d, deliveryStatus: status } : d));
+        await deliveryService.updateDeliveryStatus(id, backendStatus);
+        setDeliveries(prev => prev.map(d => d.id === id ? { ...d, deliveryStatus: statusText } : d));
     };
 
     const renderEmpty = () => (
         <View style={styles.emptyContainer}>
             <Ionicons name="document-text-outline" size={80} color={Colors.border} />
             <Text style={styles.emptyTitle}>No Deliveries Assigned</Text>
-            <Text style={styles.emptySubtitle}>You're all caught up for today!</Text>
+            <Text style={styles.emptySubtitle}>You{"'"}re all caught up for today!</Text>
         </View>
     );
 

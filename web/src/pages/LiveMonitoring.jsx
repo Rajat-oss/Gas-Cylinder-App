@@ -4,6 +4,7 @@ import { MapPin, Navigation, Phone, Search, Target, TrendingUp, Truck } from 'lu
 import { useEffect, useRef, useState } from 'react';
 import api from '../services/api';
 import { searchLocation } from '../services/rapidMaps';
+import socketService from '../services/socket';
 
 // Fix for default marker icons in modern bundlers
 const iconUrl = 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png';
@@ -202,8 +203,42 @@ const LiveMonitoring = () => {
 
     useEffect(() => {
         fetchDrivers();
-        const interval = setInterval(fetchDrivers, 5000); // 5s Live Refresh for tighter tracking
-        return () => clearInterval(interval);
+        
+        // Connect to Socket.io for real-time tracking
+        const socket = socketService.connect();
+
+        socket.on('driverLocationUpdate', (update) => {
+            console.log('Real-time location update:', update);
+            
+            // Update drivers state (point-in-time)
+            setDrivers(prev => prev.map(d => 
+                d.id === update.id 
+                    ? { ...d, latitude: update.latitude, longitude: update.longitude, isOnline: true } 
+                    : d
+            ));
+
+            // Move marker if it exists, or create it if driver newly online
+            if (update.latitude && update.longitude && mapInstance.current) {
+                const coords = [update.latitude, update.longitude];
+                if (markersRef.current[update.id]) {
+                    markersRef.current[update.id].setLatLng(coords);
+                } else {
+                    // This case should be handled by the next full fetch or if we want extra reactive markers:
+                    const marker = L.marker(coords, { icon: DefaultIcon })
+                        .addTo(mapInstance.current)
+                        .bindPopup(`<b>${update.name}</b><br>Just updated location`);
+                    markersRef.current[update.id] = marker;
+                }
+            }
+        });
+
+        // Still keep a slow poll for overall status sync (progress, etc.)
+        const interval = setInterval(fetchDrivers, 30000); 
+        
+        return () => {
+            clearInterval(interval);
+            socket.off('driverLocationUpdate');
+        };
     }, []);
 
     const handleFocusDriver = (coords) => {

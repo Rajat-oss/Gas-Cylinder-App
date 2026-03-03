@@ -72,8 +72,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const logout = async () => {
         try {
             await api.post('/auth/logout');
-        } catch (e) {
-            console.warn('Backend logout failed:', e);
+        } catch {
+            // Silently fail if backend logout fails
         }
         await storage.deleteItem('token');
         await storage.deleteItem('user');

@@ -71,6 +71,12 @@ router.post('/login', async (req, res) => {
             }
         });
 
+        // Real-time update via Socket.io
+        try {
+            const { getIO } = require('../lib/socket');
+            getIO().emit('staffStatusUpdate', { id: user.id, isOnline: true });
+        } catch (err) { }
+
         res.json({
             token,
             user: {
@@ -131,7 +137,7 @@ router.patch('/location', authenticateToken, async (req, res) => {
             return res.status(400).json({ message: 'Latitude and longitude are required' });
         }
 
-        await prisma.user.update({
+        const updatedUser = await prisma.user.update({
             where: { id: req.user.id },
             data: {
                 latitude: parseFloat(latitude),
@@ -140,6 +146,20 @@ router.patch('/location', authenticateToken, async (req, res) => {
                 lastSeen: new Date()
             }
         });
+
+        // Real-time update via Socket.io
+        try {
+            const { getIO } = require('../lib/socket');
+            getIO().emit('driverLocationUpdate', {
+                id: updatedUser.id,
+                latitude: updatedUser.latitude,
+                longitude: updatedUser.longitude,
+                name: updatedUser.name,
+                isOnline: true
+            });
+        } catch (err) {
+            console.error('Socket emit error (Location):', err.message);
+        }
 
         res.json({ message: 'Location updated successfully' });
     } catch (error) {
@@ -155,6 +175,13 @@ router.post('/logout', authenticateToken, async (req, res) => {
             where: { id: req.user.id },
             data: { isOnline: false }
         });
+
+        // Real-time update via Socket.io
+        try {
+            const { getIO } = require('../lib/socket');
+            getIO().emit('staffStatusUpdate', { id: req.user.id, isOnline: false });
+        } catch (err) { }
+
         res.json({ message: 'Logged out successfully' });
     } catch (error) {
         console.error('Logout error:', error);

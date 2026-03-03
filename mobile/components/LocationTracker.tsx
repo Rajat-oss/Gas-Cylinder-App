@@ -3,53 +3,74 @@ import { useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 
+/**
+ * Optimized Location Tracking Component
+ * Periodically updates driver location on the server.
+ */
 const LocationTracker = () => {
-    const { user, token } = useAuth();
+    const { user, token, logout } = useAuth();
 
     useEffect(() => {
-        let intervalId: any;
+        let subscription: any = null;
 
         const startTracking = async () => {
-            if (!user || !token) return;
+            // Requirement: If token/user doesn't exist, stop
+            if (!token || !user) return;
 
-            // Request permission
-            const { status } = await Location.requestForegroundPermissionsAsync();
-            if (status !== 'granted') {
-                console.warn('Permission to access location was denied');
-                return;
-            }
-
-            // Function to send current location
-            const updateLocation = async () => {
-                try {
-                    const location = await Location.getCurrentPositionAsync({
-                        accuracy: Location.Accuracy.Balanced,
-                    });
-
-                    await api.patch('/auth/location', {
-                        latitude: location.coords.latitude,
-                        longitude: location.coords.longitude
-                    });
-                } catch (error) {
-                    console.error('Failed to update location:', error);
+            try {
+                // 1. Request Permission
+                const { status } = await Location.requestForegroundPermissionsAsync();
+                if (status !== 'granted') {
+                    console.warn('[Location] Permission denied. Real-time tracking disabled.');
+                    return;
                 }
-            };
 
-            // Initial update
-            updateLocation();
+                // 2. Start Real-time Watching
+                // watchPositionAsync is more accurate & handles updates automatically when moving
+                subscription = await Location.watchPositionAsync(
+                    {
+                        accuracy: Location.Accuracy.High, // Force high accuracy for real-time fleet tracking
+                        timeInterval: 15000,             // Minimum 15 seconds to stay "Active"
+                    },
+                    async (location) => {
+                        try {
+                            const { latitude, longitude } = location.coords;
 
-            // Set interval for continuous updates (every 15 seconds for live monitoring)
-            intervalId = setInterval(updateLocation, 15000);
+                            // Send to Backend
+                            await api.patch('/auth/location', { latitude, longitude });
+
+                            // Success log for verification in mobile console
+                            console.log(`[GPS-Active] ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+                        } catch (error: any) {
+                            if (error.response?.status === 401) {
+                                console.error('[Auth] Session invalid. Logging out...');
+                                logout();
+                            } else {
+                                console.error('[API] Failed to update location:', error.message);
+                            }
+                        }
+                    }
+                );
+
+                console.log('[System] High-accuracy tracking initialized.');
+
+            } catch (error: any) {
+                console.error('[System] Tracking initialization failed:', error);
+            }
         };
 
         startTracking();
 
+        // CLEANUP: Stop watching when user logs out or leaves page
         return () => {
-            if (intervalId) clearInterval(intervalId);
+            if (subscription) {
+                subscription.remove();
+                console.log('[System] Tracking stopped.');
+            }
         };
-    }, [user, token]);
+    }, [user, token, logout]);
 
-    return null; // This component doesn't render anything
+    return null; // Logic-only component
 };
 
 export default LocationTracker;

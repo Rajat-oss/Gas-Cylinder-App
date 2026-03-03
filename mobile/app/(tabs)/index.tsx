@@ -14,47 +14,68 @@ import { CustomButton } from '../../components/CustomButton';
 import { SummaryCard } from '../../components/SummaryCard';
 import { Colors } from '../../constants/Colors';
 import { useAuth } from '../../context/AuthContext';
-import { Delivery, mockApiService } from '../../services/mockApi';
+import { deliveryService } from '../../services/deliveryService';
+import socketService from '../../services/socket';
 
 export default function DashboardScreen() {
     const router = useRouter();
     const { user } = useAuth();
     const [refreshing, setRefreshing] = useState(false);
-    const [deliveries, setDeliveries] = useState<Delivery[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [deliveries, setDeliveries] = useState<any[]>([]);
+    const [socketConnected, setSocketConnected] = useState(false);
 
-    const fetchData = async () => {
-        setLoading(true);
-        // Only fetch deliveries, driver info comes from useAuth()
-        const deliveriesData = await mockApiService.getDeliveries();
-        setDeliveries(deliveriesData);
-        setLoading(false);
-    };
+    const fetchData = React.useCallback(async () => {
+        try {
+            const data = await deliveryService.getDeliveries();
+            // In a real app, backend might only return driver's own tasks if requested via /my-tasks
+            // but our backend /my-tasks returns ONLY assigned tasks.
+            setDeliveries(data);
+        } catch (error) {
+            console.error('Dashboard fetch error:', error);
+        }
+    }, []);
 
     useEffect(() => {
         fetchData();
-    }, []);
+
+        const socket = socketService.connect();
+
+        const handleConnect = () => setSocketConnected(true);
+        const handleDisconnect = () => setSocketConnected(false);
+        const handleNewOrder = (order: any) => {
+            if (order.assignedStaffId === user?.id) {
+                setDeliveries(prev => [order, ...prev]);
+            }
+        };
+
+        socket.on('connect', handleConnect);
+        socket.on('disconnect', handleDisconnect);
+        socket.on('newOrder', handleNewOrder);
+
+        if (socket.connected) setSocketConnected(true);
+
+        return () => {
+            socket.off('connect', handleConnect);
+            socket.off('disconnect', handleDisconnect);
+            socket.off('newOrder', handleNewOrder);
+        };
+    }, [user?.id, fetchData]);
 
     const onRefresh = React.useCallback(async () => {
         setRefreshing(true);
         await fetchData();
         setRefreshing(false);
-    }, []);
+    }, [fetchData]);
 
     const stats = {
         assigned: deliveries.length,
-        delivered: deliveries.filter(d => d.deliveryStatus === 'Delivered').length,
-        pending: deliveries.filter(d => d.deliveryStatus !== 'Delivered' && d.deliveryStatus !== 'Cancelled').length,
-        cash: deliveries.filter(d => d.paymentMode === 'Cash').reduce((acc, curr) => acc + curr.amount, 0),
-        upi: deliveries.filter(d => d.paymentMode === 'UPI').reduce((acc, curr) => acc + curr.amount, 0),
+        delivered: deliveries.filter(d => d.status === 'DELIVERED').length,
+        pending: deliveries.filter(d => d.status === 'PENDING' || d.status === 'OUT_FOR_DELIVERY').length,
+        cash: 0, // Backend needs to provide this or fetch from transactions
+        upi: 0,
     };
 
-    const today = new Date().toLocaleDateString('en-IN', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-    });
+
 
     return (
         <SafeAreaView style={styles.container}>
@@ -67,7 +88,10 @@ export default function DashboardScreen() {
                 <View style={styles.header}>
                     <View>
                         <Text style={styles.greeting}>Hello, {user?.name || 'User'}!</Text>
-                        <Text style={styles.date}>{today}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: socketConnected ? Colors.success : Colors.danger }} />
+                            <Text style={[styles.date, { marginTop: 0 }]}>{socketConnected ? 'Real-time Linked' : 'Reconnecting...'}</Text>
+                        </View>
                     </View>
                     <TouchableOpacity
                         style={styles.notificationBtn}

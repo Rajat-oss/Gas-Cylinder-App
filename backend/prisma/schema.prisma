@@ -54,6 +54,7 @@ model Order {
   customerAddress String
   customerPhone   String?
   cylinderType    String
+  quantity        Int           @default(1)
   status          OrderStatus   @default(PENDING)
   assignedStaffId String?
   assignedStaff   User?         @relation("AssignedStaff", fields: [assignedStaffId], references: [id])

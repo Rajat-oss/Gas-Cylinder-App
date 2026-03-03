@@ -6,7 +6,6 @@ import { AuthProvider } from './context/AuthContext';
 
 // Pages
 import Dashboard from './pages/Dashboard';
-import DriverSignup from './pages/DriverSignup';
 import FinancialSettlement from './pages/FinancialSettlement';
 import Inventory from './pages/Inventory';
 import LiveMonitoring from './pages/LiveMonitoring';
@@ -58,7 +57,6 @@ function App() {
               {/* Admin Only Routes */}
               <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
                 <Route path="/staff" element={<StaffManagement />} />
-                <Route path="/onboard-driver" element={<DriverSignup />} />
                 <Route path="/inventory" element={<Inventory />} />
                 <Route path="/approvals" element={<ManagerApproval />} />
               </Route>

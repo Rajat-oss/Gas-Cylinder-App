@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Linking from 'expo-linking';
+import * as Location from 'expo-location';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -13,13 +15,16 @@ import {
     TextInput,
     View
 } from 'react-native';
+import { AppMap } from '../../components/AppMap';
 import { CustomButton } from '../../components/CustomButton';
 import { PaymentSelector } from '../../components/PaymentSelector';
 import { StatusBadge } from '../../components/StatusBadge';
 import { Colors } from '../../constants/Colors';
-import { Delivery, mockApiService } from '../../services/mockApi';
+import { Delivery, deliveryService } from '../../services/deliveryService';
+import { routingService } from '../../services/routingService';
 
-export default function DeliveryDetailScreen() {
+
+const DeliveryDetailScreen = () => {
     const { id } = useLocalSearchParams();
     const router = useRouter();
     const [delivery, setDelivery] = useState<Delivery | null>(null);
@@ -29,44 +34,96 @@ export default function DeliveryDetailScreen() {
     const [txnId, setTxnId] = useState('');
     const [confirming, setConfirming] = useState(false);
 
+    // Mapping states - non-blocking for initial page open
+    const [driverLoc, setDriverLoc] = useState<{ latitude: number, longitude: number } | null>(null);
+    const [destinationLoc, setDestinationLoc] = useState<{ latitude: number, longitude: number } | null>(null);
+    const [routeCoords, setRouteCoords] = useState<any[]>([]);
+    const mapRef = useRef<any>(null);
+
     useEffect(() => {
-        const fetchDelivery = async () => {
-            const data = await mockApiService.getDeliveries();
-            const item = data.find(d => d.id === id);
-            if (item) {
-                setDelivery(item);
-                setAmount(item.amount.toString());
-                if (item.paymentStatus === 'Paid') {
-                    setPaymentMode(item.paymentMode || null);
-                    setTxnId(item.transactionId || '');
+        const initializeSession = async () => {
+            try {
+                const deliveryId = typeof id === 'string' ? id : id?.[0];
+                if (!deliveryId) return;
+
+                // 1. Parallel Task Initiation (Optimized)
+                const taskPromise = deliveryService.getDeliveries().then(list => list.find(d => d.id === deliveryId));
+                const permissionsPromise = Location.requestForegroundPermissionsAsync();
+
+                // 2. Resolve Main Content ASAP
+                const item = await taskPromise;
+                if (item) {
+                    setDelivery(item);
+                    setAmount('1150');
+                    setLoading(false); // Reveal details immediately while background tasks run
+
+                    // 3. Initiate Map & Routing (Non-blocking)
+                    routingService.geocodeAddress(item.customerAddress).then(dest => {
+                        if (dest) setDestinationLoc(dest);
+                    });
+
+                    permissionsPromise.then(async ({ status }) => {
+                        if (status === 'granted') {
+                            const currentLoc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low });
+                            setDriverLoc({ latitude: currentLoc.coords.latitude, longitude: currentLoc.coords.longitude });
+
+                            Location.watchPositionAsync(
+                                { accuracy: Location.Accuracy.High, timeInterval: 5000, distanceInterval: 5 },
+                                (newLoc) => {
+                                    setDriverLoc({
+                                        latitude: newLoc.coords.latitude,
+                                        longitude: newLoc.coords.longitude
+                                    });
+                                }
+                            );
+                        }
+                    });
+                } else {
+                    setLoading(false);
                 }
+            } catch (err) {
+                console.error('Session Init Error:', err);
+                setLoading(false);
             }
-            setLoading(false);
         };
-        fetchDelivery();
+
+        initializeSession();
     }, [id]);
 
+    useEffect(() => {
+        if (driverLoc && destinationLoc) {
+            const updateRoute = async () => {
+                try {
+                    const coords = await routingService.getRoute(driverLoc, destinationLoc);
+                    setRouteCoords(coords);
+
+                    if (Platform.OS !== 'web' && mapRef.current?.fitToCoordinates) {
+                        mapRef.current.fitToCoordinates([driverLoc, destinationLoc], {
+                            edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
+                            animated: true
+                        });
+                    }
+                } catch (e) {
+                    console.error('Route update error:', e);
+                }
+            };
+            updateRoute();
+        }
+    }, [driverLoc, destinationLoc]);
+
     const handleConfirmPayment = async () => {
-        if (!paymentMode) {
-            Alert.alert('Error', 'Please select a payment mode');
-            return;
-        }
-        if (!amount || isNaN(Number(amount))) {
-            Alert.alert('Error', 'Please enter a valid amount');
-            return;
-        }
-        if (paymentMode === 'UPI' && !txnId) {
-            Alert.alert('Error', 'Please enter UPI Transaction ID');
-            return;
-        }
+        if (!paymentMode) { Alert.alert('Error', 'Please select a payment mode'); return; }
+        if (!amount || isNaN(Number(amount))) { Alert.alert('Error', 'Please enter a valid amount'); return; }
+        if (paymentMode === 'UPI' && !txnId) { Alert.alert('Error', 'Please enter UPI Transaction ID'); return; }
 
         setConfirming(true);
         try {
-            await mockApiService.confirmPayment(delivery!.id, Number(amount), paymentMode, txnId);
-            setDelivery(prev => prev ? { ...prev, paymentStatus: 'Paid', deliveryStatus: 'Delivered', paymentMode, amount: Number(amount), transactionId: txnId } : null);
-            Alert.alert('Success', 'Payment confirmed and delivery marked as completed');
-        } catch (error) {
-            Alert.alert('Error', 'Failed to confirm payment');
+            await deliveryService.updateDeliveryStatus(delivery!.id, 'DELIVERED');
+            setDelivery(prev => prev ? { ...prev, status: 'DELIVERED' } : null);
+            Alert.alert('Success', 'Delivery completed successfully!');
+            router.back();
+        } catch {
+            Alert.alert('Error', 'Failed to complete delivery');
         } finally {
             setConfirming(false);
         }
@@ -76,6 +133,7 @@ export default function DeliveryDetailScreen() {
         return (
             <View style={styles.loaderContainer}>
                 <ActivityIndicator size="large" color={Colors.primary} />
+                <Text style={styles.loadingText}>Fetching Delivery Data...</Text>
             </View>
         );
     }
@@ -83,95 +141,132 @@ export default function DeliveryDetailScreen() {
     if (!delivery) {
         return (
             <View style={styles.loaderContainer}>
-                <Text>Delivery not found</Text>
+                <Text>Task not found</Text>
+                <CustomButton title="Go Back" onPress={() => router.back()} style={{ marginTop: 20 }} />
             </View>
         );
     }
 
-    const isPaid = delivery.paymentStatus === 'Paid';
+    const isPaid = delivery.status === 'DELIVERED';
 
     return (
         <SafeAreaView style={styles.container}>
-            <Stack.Screen options={{ title: 'Delivery Details', headerShown: true }} />
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                style={{ flex: 1 }}
-            >
-                <ScrollView contentContainerStyle={styles.content}>
+            <Stack.Screen options={{ title: 'Dispatch Tracking', headerShown: true }} />
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+                <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+
+                    {/* Real-time Map (Loads Dynamically) */}
+                    <View style={styles.mapCard}>
+                        <View style={styles.mapHeader}>
+                            <View style={styles.liveIndicator}>
+                                <View style={styles.dot} />
+                                <Text style={styles.liveText}>FLEET TRACKER</Text>
+                            </View>
+                            <Text style={styles.distanceText}>Syncing nearest path...</Text>
+                        </View>
+                        <View style={styles.mapPlaceholder}>
+                            <AppMap
+                                mapRef={mapRef}
+                                driverLoc={driverLoc}
+                                destinationLoc={destinationLoc}
+                                routeCoords={routeCoords}
+                            />
+                            {/* Locate Me Button Overlay */}
+                            <View style={styles.mapControls}>
+                                <View style={styles.controlBtn} onTouchEnd={() => {
+                                    if (driverLoc) {
+                                        if (Platform.OS === 'web') {
+                                            // Handle web center via prop update or direct ref if possible
+                                            // For now, setting view manually if we had ref access, 
+                                            // but updating state driverLoc triggers our useEffect in AppMap.web
+                                            setDriverLoc({ ...driverLoc });
+                                        } else {
+                                            mapRef.current?.animateToRegion({
+                                                ...driverLoc,
+                                                latitudeDelta: 0.01,
+                                                longitudeDelta: 0.01
+                                            });
+                                        }
+                                    }
+                                }}>
+                                    <Ionicons name="locate" size={24} color={Colors.primary} />
+                                </View>
+                            </View>
+                        </View>
+                        <CustomButton
+                            title="Start GPS Navigation"
+                            variant="primary"
+                            size="md"
+                            onPress={() => {
+                                if (destinationLoc) {
+                                    const lat = destinationLoc.latitude;
+                                    const lng = destinationLoc.longitude;
+                                    const url = Platform.select({
+                                        ios: `maps:0,0?q=Delivery@${lat},${lng}`,
+                                        android: `geo:0,0?q=${lat},${lng}(Delivery)`,
+                                        default: `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
+                                    });
+                                    if (url) Linking.openURL(url);
+                                }
+                            }}
+                            style={{ marginTop: 12, borderRadius: 16 }}
+                            textStyle={{ fontSize: 13, fontWeight: '800' }}
+                        />
+                    </View>
+
                     <View style={styles.section}>
                         <View style={styles.sectionHeader}>
                             <Text style={styles.sectionTitle}>Customer Details</Text>
-                            <StatusBadge status={delivery.deliveryStatus} />
+                            <StatusBadge status={delivery.status === 'PENDING' ? 'Assigned' : delivery.status} />
                         </View>
-                        <View style={styles.card}>
+                        <View style={styles.infoCard}>
                             <View style={styles.infoRow}>
-                                <Ionicons name="person-outline" size={20} color={Colors.primary} />
-                                <View style={styles.infoText}>
-                                    <Text style={styles.label}>Name</Text>
-                                    <Text style={styles.value}>{delivery.customerName}</Text>
+                                <Ionicons name="person-circle" size={40} color={Colors.primary} />
+                                <View style={styles.textGroup}>
+                                    <Text style={styles.primaryText}>{delivery.customerName}</Text>
+                                    <Text style={styles.secondaryText}>+91 {delivery.customerPhone}</Text>
                                 </View>
+                                <Ionicons name="call" size={24} color={Colors.success} style={{ marginLeft: 'auto' }} onPress={() => Linking.openURL(`tel:${delivery.customerPhone}`)} />
                             </View>
-                            <View style={styles.infoRow}>
-                                <Ionicons name="call-outline" size={20} color={Colors.primary} />
-                                <View style={styles.infoText}>
-                                    <Text style={styles.label}>Contact</Text>
-                                    <Text style={styles.value}>{delivery.contactNumber}</Text>
-                                </View>
-                            </View>
-                            <View style={styles.infoRow}>
-                                <Ionicons name="cube-outline" size={20} color={Colors.primary} />
-                                <View style={styles.infoText}>
-                                    <Text style={styles.label}>Cylinder Type</Text>
-                                    <Text style={styles.value}>{delivery.cylinderType}</Text>
-                                </View>
+                            <View style={styles.addressBox}>
+                                <Ionicons name="map" size={16} color={Colors.textLight} />
+                                <Text style={styles.addressText}>{delivery.customerAddress}</Text>
                             </View>
                         </View>
                     </View>
 
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Delivery Address</Text>
-                        <View style={styles.card}>
-                            <Text style={styles.addressText}>{delivery.address}</Text>
-                            <View style={styles.mapPlaceholder}>
-                                <Ionicons name="map-outline" size={40} color={Colors.border} />
-                                <Text style={styles.mapText}>Map Preview Placeholder</Text>
-                            </View>
-                        </View>
-                    </View>
-
-                    <View style={styles.section}>
-                        <View style={styles.sectionHeader}>
-                            <Text style={styles.sectionTitle}>Payment Section</Text>
-                            <StatusBadge status={delivery.paymentStatus} />
-                        </View>
+                        <Text style={styles.sectionTitle}>Collection Payment</Text>
                         <View style={styles.card}>
                             <PaymentSelector
                                 selectedMode={paymentMode}
                                 onSelect={!isPaid ? setPaymentMode : () => { }}
                             />
 
-                            <Text style={styles.inputLabel}>Amount to Collect</Text>
-                            <View style={styles.inputContainer}>
-                                <Text style={styles.currency}>₹</Text>
-                                <TextInput
-                                    style={styles.input}
-                                    keyboardType="numeric"
-                                    value={amount}
-                                    onChangeText={setAmount}
-                                    editable={!isPaid}
-                                />
+                            <View style={styles.amountBox}>
+                                <Text style={styles.inputLabel}>Cash/UPI Amount</Text>
+                                <View style={styles.inputContainer}>
+                                    <Text style={styles.currency}>₹</Text>
+                                    <TextInput
+                                        style={styles.input}
+                                        keyboardType="numeric"
+                                        value={amount}
+                                        onChangeText={setAmount}
+                                        editable={!isPaid}
+                                    />
+                                </View>
                             </View>
 
                             {paymentMode === 'UPI' && (
                                 <View style={styles.upiSection}>
                                     <View style={styles.qrPlaceholder}>
                                         <Ionicons name="qr-code" size={100} color={Colors.text} />
-                                        <Text style={styles.qrText}>Scan for Payment</Text>
+                                        <Text style={[styles.qrText, { color: Colors.primary }]}>SCAN FOR MERCHANT UPI</Text>
                                     </View>
-                                    <Text style={styles.inputLabel}>Transaction ID</Text>
+                                    <Text style={styles.inputLabel}>UPI Reference Number</Text>
                                     <TextInput
                                         style={[styles.input, styles.borderedInput]}
-                                        placeholder="Enter TXN ID"
+                                        placeholder="Enter Ref No."
                                         value={txnId}
                                         onChangeText={setTxnId}
                                         editable={!isPaid}
@@ -181,7 +276,7 @@ export default function DeliveryDetailScreen() {
 
                             {!isPaid && (
                                 <CustomButton
-                                    title="Confirm Payment"
+                                    title="Mark as Delivered"
                                     onPress={handleConfirmPayment}
                                     loading={confirming}
                                     style={styles.confirmBtn}
@@ -189,142 +284,57 @@ export default function DeliveryDetailScreen() {
                                     size="lg"
                                 />
                             )}
+                            {isPaid && (
+                                <View style={styles.paidSuccess}>
+                                    <Ionicons name="checkmark-done-circle" size={40} color={Colors.success} />
+                                    <Text style={styles.paidTitle}>DELIVERY COMPLETED</Text>
+                                </View>
+                            )}
                         </View>
                     </View>
                 </ScrollView>
             </KeyboardAvoidingView>
         </SafeAreaView>
     );
-}
+};
+
+export default DeliveryDetailScreen;
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: Colors.background,
-    },
-    loaderContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    content: {
-        padding: 16,
-    },
-    section: {
-        marginBottom: 24,
-    },
-    sectionHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 12,
-    },
-    sectionTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: Colors.text,
-    },
-    card: {
-        backgroundColor: Colors.surface,
-        borderRadius: 20,
-        padding: 16,
-        borderWidth: 1,
-        borderColor: Colors.border,
-    },
-    infoRow: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        marginBottom: 16,
-    },
-    infoText: {
-        marginLeft: 12,
-    },
-    label: {
-        fontSize: 12,
-        color: Colors.textLight,
-    },
-    value: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: Colors.text,
-        marginTop: 2,
-    },
-    addressText: {
-        fontSize: 15,
-        color: Colors.text,
-        lineHeight: 22,
-        marginBottom: 16,
-    },
-    mapPlaceholder: {
-        height: 150,
-        backgroundColor: Colors.background,
-        borderRadius: 12,
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: Colors.border,
-        borderStyle: 'dashed',
-    },
-    mapText: {
-        color: Colors.textLight,
-        marginTop: 8,
-        fontSize: 12,
-    },
-    inputLabel: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: Colors.text,
-        marginTop: 16,
-        marginBottom: 8,
-    },
-    inputContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: Colors.background,
-        borderRadius: 12,
-        paddingHorizontal: 12,
-        borderWidth: 1,
-        borderColor: Colors.border,
-    },
-    currency: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: Colors.text,
-        marginRight: 4,
-    },
-    input: {
-        flex: 1,
-        paddingVertical: 12,
-        fontSize: 18,
-        fontWeight: '700',
-        color: Colors.text,
-    },
-    upiSection: {
-        marginTop: 20,
-        paddingTop: 20,
-        borderTopWidth: 1,
-        borderTopColor: Colors.border,
-    },
-    qrPlaceholder: {
-        alignItems: 'center',
-        marginBottom: 20,
-    },
-    qrText: {
-        marginTop: 8,
-        fontSize: 14,
-        fontWeight: '600',
-        color: Colors.text,
-    },
-    borderedInput: {
-        backgroundColor: Colors.background,
-        borderRadius: 12,
-        paddingHorizontal: 12,
-        borderWidth: 1,
-        borderColor: Colors.border,
-        fontSize: 16,
-        fontWeight: '500',
-    },
-    confirmBtn: {
-        marginTop: 24,
-    },
+    container: { flex: 1, backgroundColor: '#f8fafc' },
+    loaderContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    loadingText: { marginTop: 12, fontSize: 13, color: '#64748b', fontWeight: '600' },
+    content: { padding: 16 },
+    section: { marginBottom: 24 },
+    sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+    sectionTitle: { fontSize: 20, fontWeight: '800', color: Colors.text, letterSpacing: -0.5 },
+    mapCard: { backgroundColor: 'white', borderRadius: 24, padding: 12, marginBottom: 24, borderWidth: 1, borderColor: '#e2e8f0', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 4 },
+    mapHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 4, marginBottom: 12 },
+    liveIndicator: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#f0fdf4', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+    dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#22c55e' },
+    liveText: { fontSize: 10, fontWeight: '900', color: '#166534', letterSpacing: 0.5 },
+    distanceText: { fontSize: 11, color: '#64748b', fontStyle: 'italic' },
+    mapPlaceholder: { height: 250, backgroundColor: '#f1f5f9', borderRadius: 20, overflow: 'hidden' },
+    infoCard: { backgroundColor: 'white', borderRadius: 24, padding: 20, borderWidth: 1, borderColor: '#e2e8f0', elevation: 2 },
+    infoRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    textGroup: { flex: 1 },
+    primaryText: { fontSize: 18, fontWeight: '700', color: Colors.text },
+    secondaryText: { fontSize: 14, color: '#64748b' },
+    mapControls: { position: 'absolute', bottom: 16, right: 16, zIndex: 10 },
+    controlBtn: { backgroundColor: 'white', width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 8, elevation: 4, borderWidth: 1, borderColor: '#e2e8f0' },
+    addressBox: { marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#f1f5f9', flexDirection: 'row', gap: 10 },
+    addressText: { fontSize: 14, color: Colors.text, lineHeight: 20, flex: 1 },
+    card: { backgroundColor: 'white', borderRadius: 24, padding: 20, borderWidth: 1, borderColor: '#e2e8f0', elevation: 2 },
+    amountBox: { marginTop: 24 },
+    inputLabel: { fontSize: 14, fontWeight: '700', color: Colors.text, marginBottom: 10 },
+    inputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8fafc', borderRadius: 16, paddingHorizontal: 16, borderWidth: 1, borderColor: '#e2e8f0' },
+    currency: { fontSize: 20, fontWeight: '800', color: Colors.text, marginRight: 4 },
+    input: { flex: 1, paddingVertical: 14, fontSize: 20, fontWeight: '800', color: Colors.text },
+    upiSection: { marginTop: 24, paddingTop: 24, borderTopWidth: 1, borderTopColor: '#f1f5f9' },
+    qrPlaceholder: { alignItems: 'center', marginBottom: 24 },
+    qrText: { marginTop: 12, fontSize: 12, fontWeight: '900', letterSpacing: 1 },
+    borderedInput: { backgroundColor: '#f8fafc', borderRadius: 16, paddingHorizontal: 16, borderWidth: 1, borderColor: '#e2e8f0', fontSize: 16, fontWeight: '600' },
+    confirmBtn: { marginTop: 32 },
+    paidSuccess: { alignItems: 'center', paddingVertical: 20 },
+    paidTitle: { fontSize: 14, fontWeight: '900', color: Colors.success, marginTop: 10, letterSpacing: 2 }
 });

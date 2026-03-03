@@ -26,6 +26,14 @@ router.patch('/:type', authenticateToken, authorizeRoles('ADMIN', 'MANAGER'), as
             create: { cylinderType: type, stockLevel }
         });
 
+        // Real-time update via Socket.io
+        try {
+            const { getIO } = require('../lib/socket');
+            getIO().emit('inventoryUpdate', updated);
+        } catch (err) {
+            console.error('Socket emit error:', err.message);
+        }
+
         res.json(updated);
     } catch (error) {
         console.error('Update inventory error:', error);
