@@ -58,6 +58,8 @@ model Order {
   status          OrderStatus   @default(PENDING)
   assignedStaffId String?
   assignedStaff   User?         @relation("AssignedStaff", fields: [assignedStaffId], references: [id])
+  latitude        Float?
+  longitude       Float?
   transactions    Transaction[]
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt

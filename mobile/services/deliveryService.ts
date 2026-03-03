@@ -8,6 +8,8 @@ export interface Delivery {
     cylinderType: string;
     quantity: number;
     status: 'PENDING' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'CANCELLED';
+    latitude?: number;
+    longitude?: number;
     createdAt: string;
     updatedAt: string;
     assignedStaffId?: string;

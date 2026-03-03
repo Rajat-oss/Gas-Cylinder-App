@@ -3,7 +3,6 @@ import { Stack } from 'expo-router';
 import React, { useState } from 'react';
 import {
     Alert,
-    SafeAreaView,
     ScrollView,
     StyleSheet,
     Switch,
@@ -11,6 +10,7 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { CustomButton } from '../../components/CustomButton';
 import { Colors } from '../../constants/Colors';
 import { useAuth } from '../../context/AuthContext';

@@ -36,7 +36,9 @@ api.interceptors.request.use(
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
-        if (error.response?.status === 401) {
+        const isLoginRequest = error.config?.url?.includes('/auth/login');
+
+        if (error.response?.status === 401 && !isLoginRequest) {
             // Signal a session expiry (component will handle the redirect via AuthContext)
             console.warn('[API] Unauthorized access - Session might be expired');
         }

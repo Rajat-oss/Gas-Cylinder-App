@@ -6,13 +6,13 @@ import {
     Alert,
     FlatList,
     RefreshControl,
-    SafeAreaView,
     ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
     View
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { DeliveryCard } from '../../components/DeliveryCard';
 import { Colors } from '../../constants/Colors';
 import { useAuth } from '../../context/AuthContext';

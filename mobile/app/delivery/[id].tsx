@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
-import * as Location from 'expo-location';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -8,18 +7,20 @@ import {
     Alert,
     KeyboardAvoidingView,
     Platform,
-    SafeAreaView,
     ScrollView,
     StyleSheet,
     Text,
     TextInput,
+    TouchableOpacity,
     View
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppMap } from '../../components/AppMap';
 import { CustomButton } from '../../components/CustomButton';
 import { PaymentSelector } from '../../components/PaymentSelector';
 import { StatusBadge } from '../../components/StatusBadge';
 import { Colors } from '../../constants/Colors';
+import { useLocation } from '../../context/LocationContext';
 import { Delivery, deliveryService } from '../../services/deliveryService';
 import { routingService } from '../../services/routingService';
 
@@ -27,18 +28,20 @@ import { routingService } from '../../services/routingService';
 const DeliveryDetailScreen = () => {
     const { id } = useLocalSearchParams();
     const router = useRouter();
+    const { location: driverLoc } = useLocation();
     const [delivery, setDelivery] = useState<Delivery | null>(null);
     const [loading, setLoading] = useState(true);
     const [paymentMode, setPaymentMode] = useState<'Cash' | 'UPI' | null>(null);
     const [amount, setAmount] = useState('');
     const [txnId, setTxnId] = useState('');
     const [confirming, setConfirming] = useState(false);
+    const [isNavigating, setIsNavigating] = useState(false);
 
-    // Mapping states - non-blocking for initial page open
-    const [driverLoc, setDriverLoc] = useState<{ latitude: number, longitude: number } | null>(null);
+    // Mapping states
     const [destinationLoc, setDestinationLoc] = useState<{ latitude: number, longitude: number } | null>(null);
     const [routeCoords, setRouteCoords] = useState<any[]>([]);
     const mapRef = useRef<any>(null);
+    const [mapReady, setMapReady] = useState(false);
 
     useEffect(() => {
         const initializeSession = async () => {
@@ -46,38 +49,27 @@ const DeliveryDetailScreen = () => {
                 const deliveryId = typeof id === 'string' ? id : id?.[0];
                 if (!deliveryId) return;
 
-                // 1. Parallel Task Initiation (Optimized)
                 const taskPromise = deliveryService.getDeliveries().then(list => list.find(d => d.id === deliveryId));
-                const permissionsPromise = Location.requestForegroundPermissionsAsync();
 
                 // 2. Resolve Main Content ASAP
                 const item = await taskPromise;
                 if (item) {
                     setDelivery(item);
                     setAmount('1150');
-                    setLoading(false); // Reveal details immediately while background tasks run
+                    setLoading(false);
 
                     // 3. Initiate Map & Routing (Non-blocking)
-                    routingService.geocodeAddress(item.customerAddress).then(dest => {
-                        if (dest) setDestinationLoc(dest);
-                    });
-
-                    permissionsPromise.then(async ({ status }) => {
-                        if (status === 'granted') {
-                            const currentLoc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low });
-                            setDriverLoc({ latitude: currentLoc.coords.latitude, longitude: currentLoc.coords.longitude });
-
-                            Location.watchPositionAsync(
-                                { accuracy: Location.Accuracy.High, timeInterval: 5000, distanceInterval: 5 },
-                                (newLoc) => {
-                                    setDriverLoc({
-                                        latitude: newLoc.coords.latitude,
-                                        longitude: newLoc.coords.longitude
-                                    });
-                                }
-                            );
-                        }
-                    });
+                    if (item.latitude && item.longitude) {
+                        setDestinationLoc({ latitude: item.latitude, longitude: item.longitude });
+                    } else {
+                        routingService.geocodeAddress(item.customerAddress).then(dest => {
+                            if (dest) {
+                                setDestinationLoc(dest);
+                            } else {
+                                console.warn('Geocoding failed for:', item.customerAddress);
+                            }
+                        });
+                    }
                 } else {
                     setLoading(false);
                 }
@@ -96,13 +88,7 @@ const DeliveryDetailScreen = () => {
                 try {
                     const coords = await routingService.getRoute(driverLoc, destinationLoc);
                     setRouteCoords(coords);
-
-                    if (Platform.OS !== 'web' && mapRef.current?.fitToCoordinates) {
-                        mapRef.current.fitToCoordinates([driverLoc, destinationLoc], {
-                            edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
-                            animated: true
-                        });
-                    }
+                    console.log(`[Navigation] Route found with ${coords.length} points`);
                 } catch (e) {
                     console.error('Route update error:', e);
                 }
@@ -110,6 +96,59 @@ const DeliveryDetailScreen = () => {
             updateRoute();
         }
     }, [driverLoc, destinationLoc]);
+
+    // Force map to fit both markers whenever they change
+    useEffect(() => {
+        if (mapReady && mapRef.current && (driverLoc || destinationLoc)) {
+            const points = [];
+            if (driverLoc) points.push(driverLoc);
+            if (destinationLoc) points.push(destinationLoc);
+
+            if (points.length > 0 && Platform.OS !== 'web') {
+                mapRef.current.fitToCoordinates(points, {
+                    edgePadding: { top: 100, right: 100, bottom: 100, left: 100 },
+                    animated: true
+                });
+            }
+        }
+    }, [driverLoc, destinationLoc, mapReady]);
+
+    const handleStartNavigation = async () => {
+        if (!delivery) return;
+
+        try {
+            // 1. Update status to OUT_FOR_DELIVERY if pending
+            if (delivery.status === 'PENDING') {
+                const updated = await deliveryService.updateDeliveryStatus(delivery.id, 'OUT_FOR_DELIVERY');
+                setDelivery(updated);
+            }
+
+            // 2. Enable in-app route polyline
+            setIsNavigating(true);
+
+            // 3. Optional: Open external detailed turn-by-turn
+            if (destinationLoc) {
+                const lat = destinationLoc.latitude;
+                const lng = destinationLoc.longitude;
+                const url = Platform.select({
+                    ios: `maps:0,0?q=Delivery@${lat},${lng}`,
+                    android: `geo:0,0?q=${lat},${lng}(Delivery)`,
+                    default: `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
+                });
+
+                Alert.alert(
+                    'Tracking Started',
+                    'Real-time route is now visible in-app. Do you also want to open turn-by-turn navigation?',
+                    [
+                        { text: 'Stay in App', style: 'cancel' },
+                        { text: 'Open Maps', onPress: () => url && Linking.openURL(url) }
+                    ]
+                );
+            }
+        } catch (error) {
+            Alert.alert('Error', 'Failed to start navigation. Please try again.');
+        }
+    };
 
     const handleConfirmPayment = async () => {
         if (!paymentMode) { Alert.alert('Error', 'Please select a payment mode'); return; }
@@ -170,48 +209,42 @@ const DeliveryDetailScreen = () => {
                                 driverLoc={driverLoc}
                                 destinationLoc={destinationLoc}
                                 routeCoords={routeCoords}
+                                onMapReady={() => setMapReady(true)}
                             />
                             {/* Locate Me Button Overlay */}
                             <View style={styles.mapControls}>
-                                <View style={styles.controlBtn} onTouchEnd={() => {
-                                    if (driverLoc) {
-                                        if (Platform.OS === 'web') {
-                                            // Handle web center via prop update or direct ref if possible
-                                            // For now, setting view manually if we had ref access, 
-                                            // but updating state driverLoc triggers our useEffect in AppMap.web
-                                            setDriverLoc({ ...driverLoc });
-                                        } else {
-                                            mapRef.current?.animateToRegion({
-                                                ...driverLoc,
-                                                latitudeDelta: 0.01,
-                                                longitudeDelta: 0.01
-                                            });
+                                <TouchableOpacity
+                                    style={styles.controlBtn}
+                                    onPress={() => {
+                                        if (driverLoc) {
+                                            if (Platform.OS === 'web') {
+                                                // On web, centering is usually handled via props or direct leaflet manipulation
+                                                // but since driverLoc is now reactive from context, 
+                                                // we just need the map to respond.
+                                            } else {
+                                                mapRef.current?.animateToRegion({
+                                                    ...driverLoc,
+                                                    latitudeDelta: 0.01,
+                                                    longitudeDelta: 0.01
+                                                });
+                                            }
                                         }
-                                    }
-                                }}>
+                                    }}
+                                >
                                     <Ionicons name="locate" size={24} color={Colors.primary} />
-                                </View>
+                                </TouchableOpacity>
                             </View>
                         </View>
-                        <CustomButton
-                            title="Start GPS Navigation"
-                            variant="primary"
-                            size="md"
-                            onPress={() => {
-                                if (destinationLoc) {
-                                    const lat = destinationLoc.latitude;
-                                    const lng = destinationLoc.longitude;
-                                    const url = Platform.select({
-                                        ios: `maps:0,0?q=Delivery@${lat},${lng}`,
-                                        android: `geo:0,0?q=${lat},${lng}(Delivery)`,
-                                        default: `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
-                                    });
-                                    if (url) Linking.openURL(url);
-                                }
-                            }}
-                            style={{ marginTop: 12, borderRadius: 16 }}
-                            textStyle={{ fontSize: 13, fontWeight: '800' }}
-                        />
+                        {(delivery.status === 'PENDING' || delivery.status === 'OUT_FOR_DELIVERY') && (
+                            <CustomButton
+                                title={delivery.status === 'PENDING' ? "Start GPS Navigation" : "Reroute Navigation"}
+                                variant="primary"
+                                size="md"
+                                onPress={handleStartNavigation}
+                                style={{ marginTop: 12, borderRadius: 16 }}
+                                textStyle={{ fontSize: 13, fontWeight: '800' }}
+                            />
+                        )}
                     </View>
 
                     <View style={styles.section}>

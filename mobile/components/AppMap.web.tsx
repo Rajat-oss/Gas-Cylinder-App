@@ -116,6 +116,8 @@ export const AppMap = ({ driverLoc, destinationLoc, routeCoords }: AppMapProps) 
             }
         }
 
+        updateView();
+
         return () => {
             if (mapInstance.current && !libLoaded) {
                 mapInstance.current.remove();
