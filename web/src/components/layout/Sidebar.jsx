@@ -17,7 +17,7 @@ const Sidebar = () => {
 
   const menuItems = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard, roles: ['ADMIN', 'MANAGER'] },
-    { name: 'Staff Management', path: '/staff', icon: Users, roles: ['ADMIN'] },
+    { name: 'Staff Management', path: '/staff', icon: Users, roles: ['ADMIN', 'MANAGER'] },
     { name: 'Orders Management', path: '/orders', icon: ShoppingCart, roles: ['ADMIN', 'MANAGER'] },
     { name: 'Inventory', path: '/inventory', icon: Package, roles: ['ADMIN'] },
     { name: 'Live Monitoring', path: '/monitoring', icon: Activity, roles: ['ADMIN', 'MANAGER'] },

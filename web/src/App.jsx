@@ -55,10 +55,12 @@ function App() {
               <Route path="/monitoring" element={<LiveMonitoring />} />
               <Route path="/settlement" element={<FinancialSettlement />} />
               
+              {/* Admin and Manager Routes */}
+              <Route path="/staff" element={<StaffManagement />} />
+              <Route path="/staff/:id" element={<StaffDetails />} />
+              
               {/* Admin Only Routes */}
               <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
-                <Route path="/staff" element={<StaffManagement />} />
-                <Route path="/staff/:id" element={<StaffDetails />} />
                 <Route path="/inventory" element={<Inventory />} />
                 <Route path="/approvals" element={<ManagerApproval />} />
               </Route>

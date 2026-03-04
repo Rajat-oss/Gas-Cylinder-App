@@ -14,6 +14,7 @@ export interface Delivery {
     createdAt: string;
     updatedAt: string;
     assignedStaffId?: string;
+    transactions?: any[];
 }
 
 export const deliveryService = {

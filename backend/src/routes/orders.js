@@ -34,6 +34,9 @@ router.get('/my-tasks', authenticateToken, async (req, res) => {
             where: {
                 assignedStaffId: req.user.id
             },
+            include: {
+                transactions: true
+            },
             orderBy: {
                 createdAt: 'desc'
             }

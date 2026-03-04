@@ -2,6 +2,7 @@ import { Calendar, Car, ChevronLeft, ClipboardList, CreditCard, DollarSign, Load
 import { useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import socketService from '../services/socket';
 
@@ -17,6 +18,7 @@ const INDIAN_STATES = [
 const StaffDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [member, setMember] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -258,27 +260,29 @@ const StaffDetails = () => {
                <h3 className="text-4xl font-black text-emerald-400">₹{member.collection}</h3>
             </div>
 
-            <form onSubmit={handlePaymentSubmit} className="space-y-4">
-              <label className="text-[10px] font-black text-slate-500 uppercase ml-1 tracking-widest">Process Payment</label>
-              <div className="relative group">
-                <DollarSign size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-emerald-500 transition-colors" />
-                <input 
-                  type="number"
-                  required
-                  placeholder="Enter amount to settle"
-                  className="w-full bg-slate-800/40 border border-slate-700/50 rounded-xl py-3 pl-11 pr-4 text-white font-medium focus:ring-2 focus:ring-emerald-500/30 outline-none transition-all placeholder-slate-600"
-                  value={paymentAmount}
-                  onChange={(e) => setPaymentAmount(e.target.value)}
-                />
-              </div>
-              <button 
-                type="submit"
-                disabled={processingPayment}
-                className="w-full bg-emerald-600 text-white font-black py-3.5 rounded-xl hover:bg-emerald-500 active:scale-95 shadow-[0_10px_30px_rgba(16,185,129,0.2)] disabled:opacity-50 flex items-center justify-center gap-3 uppercase tracking-widest text-xs transition-all"
-              >
-                {processingPayment ? <Loader2 className="animate-spin w-4 h-4" /> : 'Settle Account'}
-              </button>
-            </form>
+            {user?.role === 'ADMIN' && (
+              <form onSubmit={handlePaymentSubmit} className="space-y-4">
+                <label className="text-[10px] font-black text-slate-500 uppercase ml-1 tracking-widest">Process Payment</label>
+                <div className="relative group">
+                  <DollarSign size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-emerald-500 transition-colors" />
+                  <input 
+                    type="number"
+                    required
+                    placeholder="Enter amount to settle"
+                    className="w-full bg-slate-800/40 border border-slate-700/50 rounded-xl py-3 pl-11 pr-4 text-white font-medium focus:ring-2 focus:ring-emerald-500/30 outline-none transition-all placeholder-slate-600"
+                    value={paymentAmount}
+                    onChange={(e) => setPaymentAmount(e.target.value)}
+                  />
+                </div>
+                <button 
+                  type="submit"
+                  disabled={processingPayment}
+                  className="w-full bg-emerald-600 text-white font-black py-3.5 rounded-xl hover:bg-emerald-500 active:scale-95 shadow-[0_10px_30px_rgba(16,185,129,0.2)] disabled:opacity-50 flex items-center justify-center gap-3 uppercase tracking-widest text-xs transition-all"
+                >
+                  {processingPayment ? <Loader2 className="animate-spin w-4 h-4" /> : 'Settle Account'}
+                </button>
+              </form>
+            )}
           </div>
         </div>
 
@@ -450,7 +454,8 @@ const StaffDetails = () => {
                              type="button" 
                              onClick={() => {
                                const newQty = Math.max(1, taskData.quantity - 1);
-                               setTaskData({...taskData, quantity: newQty, amount: newQty * 800});
+                               const currentBasePrice = taskData.amount / taskData.quantity; // use custom base price if it was changed
+                               setTaskData({...taskData, quantity: newQty, amount: newQty * currentBasePrice});
                              }}
                              className="w-12 h-full flex items-center justify-center text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all"
                            > <Minus size={20} /> </button>
@@ -459,7 +464,8 @@ const StaffDetails = () => {
                              type="button" 
                              onClick={() => {
                                const newQty = taskData.quantity + 1;
-                               setTaskData({...taskData, quantity: newQty, amount: newQty * 800});
+                               const currentBasePrice = taskData.amount / taskData.quantity; // use custom base price if it was changed
+                               setTaskData({...taskData, quantity: newQty, amount: newQty * currentBasePrice});
                              }}
                              className="w-12 h-full flex items-center justify-center text-emerald-500 hover:bg-emerald-500/10 rounded-xl transition-all"
                            > <Plus size={20} /> </button>

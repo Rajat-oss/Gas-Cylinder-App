@@ -6,27 +6,43 @@ const { authenticateToken, authorizeRoles } = require('../middleware/auth');
 // Get all staff and drivers (Admin/Manager)
 router.get('/', authenticateToken, authorizeRoles('ADMIN', 'MANAGER'), async (req, res) => {
     try {
-        const staff = await prisma.user.findMany({
-            where: {
-                role: {
-                    in: ['STAFF', 'DRIVER', 'MANAGER']
-                }
-            },
-            include: {
-                orders: {
-                    select: {
-                        status: true,
-                        transactions: {
+        let staff;
+        let retries = 3;
+
+        while (retries > 0) {
+            try {
+                staff = await prisma.user.findMany({
+                    where: {
+                        role: {
+                            in: ['STAFF', 'DRIVER', 'MANAGER']
+                        }
+                    },
+                    include: {
+                        orders: {
                             select: {
-                                amount: true,
-                                paymentType: true,
-                                timestamp: true
+                                status: true,
+                                transactions: {
+                                    select: {
+                                        amount: true,
+                                        paymentType: true,
+                                        timestamp: true
+                                    }
+                                }
                             }
                         }
                     }
+                });
+                break; // Success, exit retry loop
+            } catch (err) {
+                if (err.code === 'P1001' && retries > 1) {
+                    console.warn(`[Prisma P1001] Database sleeping/unreachable. Retrying... (${retries - 1} left)`);
+                    retries--;
+                    await new Promise(resolve => setTimeout(resolve, 2500)); // Wait 2.5s for db to wake up
+                } else {
+                    throw err; // Rethrow if not P1001 or out of retries
                 }
             }
-        });
+        }
 
         const startOfToday = new Date();
         startOfToday.setHours(0, 0, 0, 0);
@@ -72,7 +88,7 @@ router.get('/', authenticateToken, authorizeRoles('ADMIN', 'MANAGER'), async (re
         res.json(formattedStaff);
     } catch (error) {
         console.error('Fetch staff error:', error);
-        res.status(500).json({ message: 'Internal server error' });
+        res.status(500).json({ message: 'Database connection failed. Please try again.' });
     }
 });
 

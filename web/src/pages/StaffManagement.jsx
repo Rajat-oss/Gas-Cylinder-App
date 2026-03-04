@@ -2,6 +2,7 @@ import { Calendar, Car, ClipboardList, CreditCard, Edit2, Filter, Loader2, Lock,
 import { useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import socketService from '../services/socket';
 
@@ -15,6 +16,7 @@ const INDIAN_STATES = [
 ];
 
 const StaffManagement = () => {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -222,13 +224,15 @@ const StaffManagement = () => {
           <h2 className="text-3xl font-bold text-white uppercase tracking-tight">Staff Management</h2>
           <p className="text-slate-400 mt-1">Manage delivery drivers and system managers</p>
         </div>
-        <button 
-          onClick={() => handleOpenModal()}
-          className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-6 py-3 rounded-2xl flex items-center gap-2 transition-all shadow-lg shadow-blue-500/20 active:scale-95"
-        >
-          <Plus size={20} />
-          <span>Add New Staff</span>
-        </button>
+        {user?.role === 'ADMIN' && (
+          <button 
+            onClick={() => handleOpenModal()}
+            className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-6 py-3 rounded-2xl flex items-center gap-2 transition-all shadow-lg shadow-blue-500/20 active:scale-95"
+          >
+            <Plus size={20} />
+            <span>Add New Staff</span>
+          </button>
+        )}
       </div>
 
       <div className="bg-slate-900/50 border border-slate-800 rounded-3xl overflow-hidden backdrop-blur-sm">
@@ -262,7 +266,7 @@ const StaffManagement = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">
-              {staff.map((member) => (
+              {(user?.role === 'MANAGER' ? staff.filter(s => s.role === 'DRIVER') : staff).map((member) => (
                 <tr 
                   key={member.id} 
                   className="hover:bg-slate-800/60 transition-all group cursor-pointer border-l-2 border-transparent hover:border-blue-500"
@@ -308,16 +312,28 @@ const StaffManagement = () => {
                   <td className="px-6 py-5 text-right font-bold text-white">₹{member.collection}</td>
                   <td className="px-6 py-5" onClick={(e) => e.stopPropagation()}>
                     <div className="flex justify-center items-center gap-2">
-                      <button onClick={() => handleOpenModal(member)} className="p-2 text-slate-400 hover:bg-blue-500/10 hover:text-blue-400 rounded-lg transition-all" title="Edit">
-                        <Edit2 size={16} />
-                      </button>
                       <button 
-                        onClick={() => handleDelete(member.id)}
-                        className="p-2 text-slate-400 hover:bg-rose-500/10 hover:text-rose-400 rounded-lg transition-all" 
-                        title="Delete"
+                        onClick={(e) => { e.stopPropagation(); handleOpenTaskModal(member); }} 
+                        className="p-2 text-slate-400 hover:bg-emerald-500/10 hover:text-emerald-400 rounded-lg transition-all" 
+                        title="Assign Task"
                       >
-                        <UserX size={16} />
+                        <ClipboardList size={16} />
                       </button>
+                      
+                      {user?.role === 'ADMIN' && (
+                        <>
+                          <button onClick={(e) => { e.stopPropagation(); handleOpenModal(member); }} className="p-2 text-slate-400 hover:bg-blue-500/10 hover:text-blue-400 rounded-lg transition-all" title="Edit">
+                            <Edit2 size={16} />
+                          </button>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); handleDelete(member.id); }}
+                            className="p-2 text-slate-400 hover:bg-rose-500/10 hover:text-rose-400 rounded-lg transition-all" 
+                            title="Delete"
+                          >
+                            <UserX size={16} />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -501,7 +517,8 @@ const StaffManagement = () => {
                              type="button" 
                              onClick={() => {
                                const newQty = Math.max(1, taskData.quantity - 1);
-                               setTaskData({...taskData, quantity: newQty, amount: newQty * 800});
+                               const currentBasePrice = taskData.amount / taskData.quantity; // Determine base price from current inputs
+                               setTaskData({...taskData, quantity: newQty, amount: newQty * currentBasePrice});
                              }}
                              className="w-12 h-full flex items-center justify-center text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all"
                            > <Minus size={20} /> </button>
@@ -510,7 +527,8 @@ const StaffManagement = () => {
                              type="button" 
                              onClick={() => {
                                const newQty = taskData.quantity + 1;
-                               setTaskData({...taskData, quantity: newQty, amount: newQty * 800});
+                               const currentBasePrice = taskData.amount / taskData.quantity; // Determine base price from current inputs
+                               setTaskData({...taskData, quantity: newQty, amount: newQty * currentBasePrice});
                              }}
                              className="w-12 h-full flex items-center justify-center text-emerald-500 hover:bg-emerald-500/10 rounded-xl transition-all"
                            > <Plus size={20} /> </button>

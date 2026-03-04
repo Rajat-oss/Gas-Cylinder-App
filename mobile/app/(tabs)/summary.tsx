@@ -10,25 +10,26 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBadge } from '../../components/StatusBadge';
 import { SummaryCard } from '../../components/SummaryCard';
 import { Colors } from '../../constants/Colors';
-import { Delivery, mockApiService } from '../../services/mockApi';
-
-
+import { useAuth } from '../../context/AuthContext';
+import { Delivery, deliveryService } from '../../services/deliveryService';
 export default function SummaryScreen() {
     const [deliveries, setDeliveries] = useState<Delivery[]>([]);
+    const { user } = useAuth();
 
     const fetchData = React.useCallback(async () => {
-        const data = await mockApiService.getDeliveries();
-        setDeliveries(data);
-    }, []);
+        const data = await deliveryService.getDeliveries();
+        const myDeliveries = data.filter(d => d.assignedStaffId === user?.id);
+        setDeliveries(myDeliveries);
+    }, [user?.id]);
 
     useEffect(() => {
         fetchData();
     }, [fetchData]);
 
     const stats = {
-        total: deliveries.filter(d => d.deliveryStatus === 'Delivered').length,
-        cash: deliveries.filter(d => d.paymentMode === 'Cash' && d.deliveryStatus === 'Delivered').reduce((acc, curr) => acc + curr.amount, 0),
-        upi: deliveries.filter(d => d.paymentMode === 'UPI' && d.deliveryStatus === 'Delivered').reduce((acc, curr) => acc + curr.amount, 0),
+        total: deliveries.filter(d => d.status === 'DELIVERED').length,
+        cash: deliveries.reduce((total, d) => total + (d.transactions?.filter(t => t.paymentType === 'CASH').reduce((sum, t) => sum + t.amount, 0) || 0), 0),
+        upi: deliveries.reduce((total, d) => total + (d.transactions?.filter(t => t.paymentType === 'UPI').reduce((sum, t) => sum + t.amount, 0) || 0), 0),
     };
 
     const chartData = [
@@ -93,26 +94,28 @@ export default function SummaryScreen() {
 
                 <Text style={styles.sectionTitle}>Transaction History</Text>
                 <View style={styles.historyCard}>
-                    {deliveries.filter(d => d.deliveryStatus === 'Delivered').map((item) => (
-                        <View key={item.id} style={styles.historyItem}>
-                            <View style={styles.historyIcon}>
-                                <Ionicons
-                                    name={item.paymentMode === 'UPI' ? 'qr-code-outline' : 'cash-outline'}
-                                    size={20}
-                                    color={Colors.textLight}
-                                />
+                    {deliveries.filter(d => d.status === 'DELIVERED' && d.transactions && d.transactions.length > 0).flatMap((item) =>
+                        item.transactions!.map(t => (
+                            <View key={t.id} style={styles.historyItem}>
+                                <View style={styles.historyIcon}>
+                                    <Ionicons
+                                        name={t.paymentType === 'UPI' ? 'qr-code-outline' : 'cash-outline'}
+                                        size={20}
+                                        color={Colors.textLight}
+                                    />
+                                </View>
+                                <View style={styles.historyInfo}>
+                                    <Text style={styles.historyName}>{item.customerName}</Text>
+                                    <Text style={styles.historyDate}>Today • {t.paymentType}</Text>
+                                </View>
+                                <View style={styles.historyAmount}>
+                                    <Text style={styles.amountText}>+₹{t.amount}</Text>
+                                    <StatusBadge status="DELIVERED" />
+                                </View>
                             </View>
-                            <View style={styles.historyInfo}>
-                                <Text style={styles.historyName}>{item.customerName}</Text>
-                                <Text style={styles.historyDate}>Today • {item.paymentMode}</Text>
-                            </View>
-                            <View style={styles.historyAmount}>
-                                <Text style={styles.amountText}>+₹{item.amount}</Text>
-                                <StatusBadge status="Paid" />
-                            </View>
-                        </View>
-                    ))}
-                    {deliveries.filter(d => d.deliveryStatus === 'Delivered').length === 0 && (
+                        ))
+                    )}
+                    {deliveries.filter(d => d.status === 'DELIVERED' && d.transactions && d.transactions.length > 0).length === 0 && (
                         <Text style={styles.noData}>No completed deliveries yet.</Text>
                     )}
                 </View>

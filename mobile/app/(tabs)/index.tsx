@@ -97,8 +97,8 @@ export default function DashboardScreen() {
         assigned: deliveries.length,
         delivered: deliveries.filter(d => d.status === 'DELIVERED').length,
         pending: deliveries.filter(d => d.status === 'PENDING' || d.status === 'OUT_FOR_DELIVERY').length,
-        cash: 0, // Backend needs to provide this or fetch from transactions
-        upi: 0,
+        cash: deliveries.reduce((total, d) => total + (d.transactions?.filter((t: any) => t.paymentType === 'CASH').reduce((sum: number, t: any) => sum + t.amount, 0) || 0), 0),
+        upi: deliveries.reduce((total, d) => total + (d.transactions?.filter((t: any) => t.paymentType === 'UPI').reduce((sum: number, t: any) => sum + t.amount, 0) || 0), 0),
     };
 
 
