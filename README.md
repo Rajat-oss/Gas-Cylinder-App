@@ -21,7 +21,7 @@ This repository contains the full logistics management system for gas cylinder d
    ```
 3. Start the app:
    ```bash
-   npx expo start
+   npx expo start -c
    ```
 
 ## PRD Features (Driver App)
