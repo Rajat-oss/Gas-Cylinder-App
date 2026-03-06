@@ -17,8 +17,9 @@ router.get('/stats', authenticateToken, authorizeRoles('ADMIN', 'MANAGER'), asyn
             prisma.order.count({
                 where: {
                     status: 'DELIVERED',
-                    updatedAt: {
-                        gte: new Date(new Date().setHours(0, 0, 0, 0))
+                    scheduledDeliveryDate: {
+                        gte: new Date(new Date().setHours(0, 0, 0, 0)),
+                        lte: new Date(new Date().setHours(23, 59, 59, 999))
                     }
                 }
             }),
@@ -36,13 +37,16 @@ router.get('/stats', authenticateToken, authorizeRoles('ADMIN', 'MANAGER'), asyn
         const cashCollection = transactions.filter(t => t.paymentType === 'CASH').reduce((sum, t) => sum + t.amount, 0);
         const upiCollection = transactions.filter(t => t.paymentType === 'UPI').reduce((sum, t) => sum + t.amount, 0);
 
-        // Calculate hourly stats for chart
+        // Calculate hourly stats for chart based on scheduled delivery date
         const deliveredOrdersForChart = await prisma.order.findMany({
             where: {
                 status: 'DELIVERED',
-                updatedAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) }
+                scheduledDeliveryDate: {
+                    gte: new Date(new Date().setHours(0, 0, 0, 0)),
+                    lte: new Date(new Date().setHours(23, 59, 59, 999))
+                }
             },
-            select: { updatedAt: true }
+            select: { scheduledDeliveryDate: true }
         });
 
         const hourlyStats = Array.from({ length: 12 }, (_, i) => {
@@ -54,10 +58,12 @@ router.get('/stats', authenticateToken, authorizeRoles('ADMIN', 'MANAGER'), asyn
         });
 
         deliveredOrdersForChart.forEach(order => {
-            const hour = new Date(order.updatedAt).getHours();
-            const index = Math.floor((hour - 6) / 2);
-            if (index >= 0 && index < 12) {
-                hourlyStats[index].deliveries++;
+            if (order.scheduledDeliveryDate) {
+                const hour = new Date(order.scheduledDeliveryDate).getHours();
+                const index = Math.floor((hour - 6) / 2);
+                if (index >= 0 && index < 12) {
+                    hourlyStats[index].deliveries++;
+                }
             }
         });
 

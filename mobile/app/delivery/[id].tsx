@@ -275,6 +275,33 @@ const DeliveryDetailScreen = () => {
                         </View>
                     </View>
 
+                    {delivery.scheduledDeliveryDate && (
+                        <View style={styles.section}>
+                            <Text style={styles.sectionTitle}>Scheduled Delivery</Text>
+                            <View style={styles.infoCard}>
+                                <View style={styles.infoRow}>
+                                    <Ionicons name="calendar" size={24} color={Colors.primary} />
+                                    <View style={styles.textGroup}>
+                                        <Text style={styles.primaryText}>
+                                            {new Date(delivery.scheduledDeliveryDate).toLocaleDateString('en-IN', { 
+                                                weekday: 'long', 
+                                                year: 'numeric', 
+                                                month: 'long', 
+                                                day: 'numeric' 
+                                            })}
+                                        </Text>
+                                        <Text style={styles.secondaryText}>
+                                            {new Date(delivery.scheduledDeliveryDate).toLocaleTimeString('en-IN', { 
+                                                hour: '2-digit', 
+                                                minute: '2-digit' 
+                                            })}
+                                        </Text>
+                                    </View>
+                                </View>
+                            </View>
+                        </View>
+                    )}
+
                     <View style={styles.section}>
                         <Text style={styles.sectionTitle}>Collection Payment</Text>
                         <View style={styles.card}>

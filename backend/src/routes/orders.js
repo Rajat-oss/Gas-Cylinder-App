@@ -52,7 +52,7 @@ router.get('/my-tasks', authenticateToken, async (req, res) => {
 router.post('/', authenticateToken, authorizeRoles('ADMIN', 'MANAGER'), async (req, res) => {
     try {
         console.log('Order creation request body:', req.body);
-        const { customerName, customerAddress, customerPhone, cylinderType, quantity, amount, assignedStaffId } = req.body;
+        const { customerName, customerAddress, customerPhone, cylinderType, quantity, amount, assignedStaffId, scheduledDeliveryDate } = req.body;
         const parsedQuantity = quantity ? parseInt(quantity) : 1;
         const parsedAmount = amount !== undefined ? parseFloat(amount) : parsedQuantity * 800;
 
@@ -85,7 +85,8 @@ router.post('/', authenticateToken, authorizeRoles('ADMIN', 'MANAGER'), async (r
                 cylinderType,
                 quantity: parsedQuantity,
                 amount: parsedAmount,
-                assignedStaffId
+                assignedStaffId,
+                scheduledDeliveryDate: scheduledDeliveryDate ? new Date(scheduledDeliveryDate) : null
             }
         });
 
@@ -108,7 +109,7 @@ router.post('/', authenticateToken, authorizeRoles('ADMIN', 'MANAGER'), async (r
 // Update order status/assigned staff (Admin/Manager/Driver)
 router.patch('/:id', authenticateToken, async (req, res) => {
     try {
-        const { status, assignedStaffId, paymentMode, amount, txnId } = req.body;
+        const { status, assignedStaffId, paymentMode, amount, txnId, scheduledDeliveryDate } = req.body;
 
         // Find existing order
         const existingOrder = await prisma.order.findUnique({
@@ -128,7 +129,8 @@ router.patch('/:id', authenticateToken, async (req, res) => {
             where: { id: req.params.id },
             data: {
                 status: status || undefined,
-                assignedStaffId: assignedStaffId || undefined
+                assignedStaffId: assignedStaffId || undefined,
+                scheduledDeliveryDate: scheduledDeliveryDate ? new Date(scheduledDeliveryDate) : undefined
             }
         });
 

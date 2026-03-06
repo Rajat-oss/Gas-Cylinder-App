@@ -108,6 +108,7 @@ const OrderManagement = () => {
                 </th>
                 <th className="px-6 py-5">Order ID & Customer</th>
                 <th className="px-6 py-5">Delivery Address</th>
+                <th className="px-6 py-5">Scheduled Date</th>
                 <th className="px-6 py-5">Content</th>
                 <th className="px-6 py-5">Assigned Staff</th>
                 <th className="px-6 py-5">Status</th>
@@ -137,6 +138,20 @@ const OrderManagement = () => {
                       <MapPin size={14} className="mt-1 flex-shrink-0" />
                       <span className="text-sm line-clamp-2">{order.customerAddress}</span>
                     </div>
+                  </td>
+                  <td className="px-6 py-5">
+                    {order.scheduledDeliveryDate ? (
+                      <div className="flex flex-col">
+                        <span className="text-white text-sm font-bold">
+                          {new Date(order.scheduledDeliveryDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                        </span>
+                        <span className="text-slate-500 text-xs">
+                          {new Date(order.scheduledDeliveryDate).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-slate-600 text-xs">Not scheduled</span>
+                    )}
                   </td>
                   <td className="px-6 py-5">
                     <div className="flex items-center gap-2">

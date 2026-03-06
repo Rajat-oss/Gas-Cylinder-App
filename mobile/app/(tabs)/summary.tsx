@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import {
+    RefreshControl,
     ScrollView,
     StyleSheet,
     Text,
@@ -14,17 +16,38 @@ import { useAuth } from '../../context/AuthContext';
 import { Delivery, deliveryService } from '../../services/deliveryService';
 export default function SummaryScreen() {
     const [deliveries, setDeliveries] = useState<Delivery[]>([]);
+    const [refreshing, setRefreshing] = useState(false);
     const { user } = useAuth();
 
     const fetchData = React.useCallback(async () => {
         const data = await deliveryService.getDeliveries();
         const myDeliveries = data.filter(d => d.assignedStaffId === user?.id);
         setDeliveries(myDeliveries);
+        setRefreshing(false);
     }, [user?.id]);
+
+    const onRefresh = React.useCallback(() => {
+        setRefreshing(true);
+        fetchData();
+    }, [fetchData]);
 
     useEffect(() => {
         fetchData();
+        
+        // Auto-refresh every 30 seconds for live updates
+        const interval = setInterval(() => {
+            fetchData();
+        }, 30000);
+
+        return () => clearInterval(interval);
     }, [fetchData]);
+
+    // Refresh when tab comes into focus
+    useFocusEffect(
+        React.useCallback(() => {
+            fetchData();
+        }, [fetchData])
+    );
 
     const stats = {
         total: deliveries.filter(d => d.status === 'DELIVERED').length,
@@ -32,21 +55,37 @@ export default function SummaryScreen() {
         upi: deliveries.reduce((total, d) => total + (d.transactions?.filter(t => t.paymentType === 'UPI').reduce((sum, t) => sum + t.amount, 0) || 0), 0),
     };
 
+    // Calculate deliveries by day of week based on scheduledDeliveryDate
     const chartData = [
         { label: 'Mon', value: 0 },
         { label: 'Tue', value: 0 },
         { label: 'Wed', value: 0 },
         { label: 'Thu', value: 0 },
-        { label: 'Fri', value: deliveries.length },
-        { label: 'Sat', value: deliveries.length },
+        { label: 'Fri', value: 0 },
+        { label: 'Sat', value: 0 },
         { label: 'Sun', value: 0 },
     ];
+
+    // Count deliveries by scheduled delivery date
+    deliveries.forEach(delivery => {
+        if (delivery.status === 'DELIVERED' && delivery.scheduledDeliveryDate) {
+            const date = new Date(delivery.scheduledDeliveryDate);
+            const dayIndex = date.getDay(); // 0 = Sunday, 1 = Monday, etc.
+            const mappedIndex = dayIndex === 0 ? 6 : dayIndex - 1; // Convert to Mon=0, Sun=6
+            chartData[mappedIndex].value++;
+        }
+    });
 
     const maxVal = Math.max(...chartData.map(d => d.value));
 
     return (
         <SafeAreaView style={styles.container}>
-            <ScrollView contentContainerStyle={styles.content}>
+            <ScrollView 
+                contentContainerStyle={styles.content}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                }
+            >
                 <Text style={styles.sectionTitle}>Performance Analytics</Text>
 
                 <View style={styles.chartCard}>
