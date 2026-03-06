@@ -11,6 +11,7 @@ export interface Delivery {
     status: 'PENDING' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'CANCELLED';
     latitude?: number;
     longitude?: number;
+    scheduledDeliveryDate?: string;
     createdAt: string;
     updatedAt: string;
     assignedStaffId?: string;
