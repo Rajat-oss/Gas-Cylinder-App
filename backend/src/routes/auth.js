@@ -128,6 +128,33 @@ router.get('/me', authenticateToken, async (req, res) => {
     }
 });
 
+// Ping route to keep connection alive and update online status
+router.post('/ping', authenticateToken, async (req, res) => {
+    try {
+        await prisma.user.update({
+            where: { id: req.user.id },
+            data: {
+                isOnline: true,
+                lastSeen: new Date()
+            }
+        });
+
+        // Real-time update via Socket.io
+        try {
+            const { getIO } = require('../lib/socket');
+            getIO().emit('staffStatusUpdate', { id: req.user.id, isOnline: true });
+        } catch (err) { }
+
+        res.json({ message: 'Ping successful' });
+    } catch (error) {
+        if (error.code === 'P2025') {
+            return res.status(401).json({ message: 'User not found or deleted' });
+        }
+        console.error('Ping error:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
 // Update current user location
 router.patch('/location', authenticateToken, async (req, res) => {
     try {
@@ -163,6 +190,9 @@ router.patch('/location', authenticateToken, async (req, res) => {
 
         res.json({ message: 'Location updated successfully' });
     } catch (error) {
+        if (error.code === 'P2025') {
+            return res.status(401).json({ message: 'User not found or deleted' });
+        }
         console.error('Update location error:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
@@ -184,6 +214,9 @@ router.post('/logout', authenticateToken, async (req, res) => {
 
         res.json({ message: 'Logged out successfully' });
     } catch (error) {
+        if (error.code === 'P2025') {
+            return res.status(401).json({ message: 'User not found or deleted' });
+        }
         console.error('Logout error:', error);
         res.status(500).json({ message: 'Internal server error' });
     }

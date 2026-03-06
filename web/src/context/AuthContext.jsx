@@ -12,6 +12,23 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
+  useEffect(() => {
+    let intervalId;
+    if (user) {
+      // Send a ping immediately if user exists
+      api.post('/auth/ping').catch(err => console.error('Ping failed', err));
+      
+      // Ping every 60 seconds to maintain real-time online status
+      intervalId = setInterval(() => {
+        api.post('/auth/ping').catch(() => {});
+      }, 60000);
+    }
+    
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [user]);
+
   const login = async (email, password) => {
     const response = await api.post('/auth/login', { email, password });
     const { token, user } = response.data;
