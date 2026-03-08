@@ -56,9 +56,9 @@ const Sidebar = () => {
     <div className="fixed left-0 top-0 h-screen w-64 bg-slate-900 text-white flex flex-col border-r border-slate-800 z-50">
       <div className="p-6">
         <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">
-          GasFlow Admin
+          {user?.role === "MANAGER" ? "GasFlow manager" : "GasFlow Admin"}
         </h1>
-        <p className="text-xs text-slate-400 mt-1 uppercase tracking-widest font-semibold">
+        <p className="text-xs text-slate-400 mt-1 tracking-widest font-semibold">
           Delivery System
         </p>
       </div>
