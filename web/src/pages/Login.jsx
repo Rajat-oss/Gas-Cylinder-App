@@ -93,9 +93,7 @@ const Login = () => {
             </button>
           </form>
 
-          <p className="mt-8 text-center text-slate-500 text-sm">
-            Don't have an account? <Link to="/signup" className="text-blue-400 font-bold hover:underline">Sign up now</Link>
-          </p>
+         
         </div>
       </div>
     </div>
