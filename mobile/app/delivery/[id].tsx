@@ -275,7 +275,7 @@ const DeliveryDetailScreen = () => {
                         </View>
                     </View>
 
-                    {delivery.scheduledDeliveryDate && (
+                    {(delivery.scheduledDeliveryDate || delivery.createdAt) && (
                         <View style={styles.section}>
                             <Text style={styles.sectionTitle}>Scheduled Delivery</Text>
                             <View style={styles.infoCard}>
@@ -283,17 +283,17 @@ const DeliveryDetailScreen = () => {
                                     <Ionicons name="calendar" size={24} color={Colors.primary} />
                                     <View style={styles.textGroup}>
                                         <Text style={styles.primaryText}>
-                                            {new Date(delivery.scheduledDeliveryDate).toLocaleDateString('en-IN', { 
-                                                weekday: 'long', 
-                                                year: 'numeric', 
-                                                month: 'long', 
-                                                day: 'numeric' 
+                                            {new Date(delivery.scheduledDeliveryDate || delivery.createdAt).toLocaleDateString('en-IN', {
+                                                weekday: 'long',
+                                                year: 'numeric',
+                                                month: 'long',
+                                                day: 'numeric'
                                             })}
                                         </Text>
                                         <Text style={styles.secondaryText}>
-                                            {new Date(delivery.scheduledDeliveryDate).toLocaleTimeString('en-IN', { 
-                                                hour: '2-digit', 
-                                                minute: '2-digit' 
+                                            {new Date(delivery.scheduledDeliveryDate || delivery.createdAt).toLocaleTimeString('en-IN', {
+                                                hour: '2-digit',
+                                                minute: '2-digit'
                                             })}
                                         </Text>
                                     </View>

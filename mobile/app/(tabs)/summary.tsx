@@ -14,6 +14,7 @@ import { SummaryCard } from '../../components/SummaryCard';
 import { Colors } from '../../constants/Colors';
 import { useAuth } from '../../context/AuthContext';
 import { Delivery, deliveryService } from '../../services/deliveryService';
+import socketService from '../../services/socket';
 export default function SummaryScreen() {
     const [deliveries, setDeliveries] = useState<Delivery[]>([]);
     const [refreshing, setRefreshing] = useState(false);
@@ -33,13 +34,26 @@ export default function SummaryScreen() {
 
     useEffect(() => {
         fetchData();
-        
+
         // Auto-refresh every 30 seconds for live updates
         const interval = setInterval(() => {
             fetchData();
         }, 30000);
 
-        return () => clearInterval(interval);
+        const socket = socketService.connect();
+
+        const handleUpdate = () => {
+            fetchData();
+        };
+
+        socket.on('newOrder', handleUpdate);
+        socket.on('orderUpdated', handleUpdate);
+
+        return () => {
+            clearInterval(interval);
+            socket.off('newOrder', handleUpdate);
+            socket.off('orderUpdated', handleUpdate);
+        };
     }, [fetchData]);
 
     // Refresh when tab comes into focus
@@ -68,11 +82,14 @@ export default function SummaryScreen() {
 
     // Count deliveries by scheduled delivery date
     deliveries.forEach(delivery => {
-        if (delivery.status === 'DELIVERED' && delivery.scheduledDeliveryDate) {
-            const date = new Date(delivery.scheduledDeliveryDate);
-            const dayIndex = date.getDay(); // 0 = Sunday, 1 = Monday, etc.
-            const mappedIndex = dayIndex === 0 ? 6 : dayIndex - 1; // Convert to Mon=0, Sun=6
-            chartData[mappedIndex].value++;
+        if (delivery.status === 'DELIVERED') {
+            const dateStr = delivery.scheduledDeliveryDate || delivery.createdAt;
+            if (dateStr) {
+                const date = new Date(dateStr);
+                const dayIndex = date.getDay(); // 0 = Sunday, 1 = Monday, etc.
+                const mappedIndex = dayIndex === 0 ? 6 : dayIndex - 1; // Convert to Mon=0, Sun=6
+                chartData[mappedIndex].value++;
+            }
         }
     });
 
@@ -80,7 +97,7 @@ export default function SummaryScreen() {
 
     return (
         <SafeAreaView style={styles.container}>
-            <ScrollView 
+            <ScrollView
                 contentContainerStyle={styles.content}
                 refreshControl={
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -134,25 +151,51 @@ export default function SummaryScreen() {
                 <Text style={styles.sectionTitle}>Transaction History</Text>
                 <View style={styles.historyCard}>
                     {deliveries.filter(d => d.status === 'DELIVERED' && d.transactions && d.transactions.length > 0).flatMap((item) =>
-                        item.transactions!.map(t => (
-                            <View key={t.id} style={styles.historyItem}>
-                                <View style={styles.historyIcon}>
-                                    <Ionicons
-                                        name={t.paymentType === 'UPI' ? 'qr-code-outline' : 'cash-outline'}
-                                        size={20}
-                                        color={Colors.textLight}
-                                    />
+                        item.transactions!.map(t => {
+                            // Get delivery date - use createdAt as actual delivery date
+                            const deliveryDate = new Date(item.createdAt);
+                            const today = new Date();
+                            const yesterday = new Date(today);
+                            yesterday.setDate(yesterday.getDate() - 1);
+                            
+                            // Reset time to compare only dates
+                            today.setHours(0, 0, 0, 0);
+                            yesterday.setHours(0, 0, 0, 0);
+                            deliveryDate.setHours(0, 0, 0, 0);
+                            
+                            let dateStr;
+                            if (deliveryDate.getTime() === today.getTime()) {
+                                dateStr = 'Today';
+                            } else if (deliveryDate.getTime() === yesterday.getTime()) {
+                                dateStr = 'Yesterday';
+                            } else {
+                                // Format as DD-MM-YYYY
+                                const day = String(deliveryDate.getDate()).padStart(2, '0');
+                                const month = String(deliveryDate.getMonth() + 1).padStart(2, '0');
+                                const year = deliveryDate.getFullYear();
+                                dateStr = `${day}-${month}-${year}`;
+                            }
+                            
+                            return (
+                                <View key={t.id} style={styles.historyItem}>
+                                    <View style={styles.historyIcon}>
+                                        <Ionicons
+                                            name={t.paymentType === 'UPI' ? 'qr-code-outline' : 'cash-outline'}
+                                            size={20}
+                                            color={Colors.textLight}
+                                        />
+                                    </View>
+                                    <View style={styles.historyInfo}>
+                                        <Text style={styles.historyName}>{item.customerName}</Text>
+                                        <Text style={styles.historyDate}>{dateStr} • {t.paymentType}</Text>
+                                    </View>
+                                    <View style={styles.historyAmount}>
+                                        <Text style={styles.amountText}>+₹{t.amount}</Text>
+                                        <StatusBadge status="DELIVERED" />
+                                    </View>
                                 </View>
-                                <View style={styles.historyInfo}>
-                                    <Text style={styles.historyName}>{item.customerName}</Text>
-                                    <Text style={styles.historyDate}>Today • {t.paymentType}</Text>
-                                </View>
-                                <View style={styles.historyAmount}>
-                                    <Text style={styles.amountText}>+₹{t.amount}</Text>
-                                    <StatusBadge status="DELIVERED" />
-                                </View>
-                            </View>
-                        ))
+                            );
+                        })
                     )}
                     {deliveries.filter(d => d.status === 'DELIVERED' && d.transactions && d.transactions.length > 0).length === 0 && (
                         <Text style={styles.noData}>No completed deliveries yet.</Text>
