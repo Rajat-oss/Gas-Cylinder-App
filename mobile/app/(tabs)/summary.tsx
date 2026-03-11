@@ -1,11 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
+    Alert,
     RefreshControl,
     ScrollView,
     StyleSheet,
     Text,
+    TouchableOpacity,
     View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,6 +19,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Delivery, deliveryService } from '../../services/deliveryService';
 import socketService from '../../services/socket';
 export default function SummaryScreen() {
+    const router = useRouter();
     const [deliveries, setDeliveries] = useState<Delivery[]>([]);
     const [refreshing, setRefreshing] = useState(false);
     const { user } = useAuth();
@@ -148,9 +152,25 @@ export default function SummaryScreen() {
                     />
                 </View>
 
-                <Text style={styles.sectionTitle}>Transaction History</Text>
+                <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>Transaction History</Text>
+                    <TouchableOpacity 
+                        style={styles.viewAllBtn}
+                        onPress={() => router.push('/transactions')}
+                    >
+                        <Text style={styles.viewAllText}>View All</Text>
+                        <Ionicons name="chevron-forward" size={16} color={Colors.primary} />
+                    </TouchableOpacity>
+                </View>
                 <View style={styles.historyCard}>
-                    {deliveries.filter(d => d.status === 'DELIVERED' && d.transactions && d.transactions.length > 0).flatMap((item) =>
+                    {deliveries.filter(d => {
+                        if (d.status !== 'DELIVERED' || !d.transactions || d.transactions.length === 0) return false;
+                        
+                        const deliveryDate = new Date(d.createdAt);
+                        const sevenDaysAgo = new Date();
+                        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+                        return deliveryDate >= sevenDaysAgo;
+                    }).flatMap((item) =>
                         item.transactions!.map(t => {
                             // Get delivery date - use createdAt as actual delivery date
                             const deliveryDate = new Date(item.createdAt);
@@ -220,6 +240,23 @@ const styles = StyleSheet.create({
         color: Colors.text,
         marginBottom: 16,
         marginTop: 8,
+    },
+    sectionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 16,
+        marginTop: 8,
+    },
+    viewAllBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    viewAllText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: Colors.primary,
     },
     chartCard: {
         backgroundColor: Colors.surface,

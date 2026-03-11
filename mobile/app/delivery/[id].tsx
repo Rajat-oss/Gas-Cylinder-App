@@ -223,14 +223,20 @@ const DeliveryDetailScreen = () => {
                                 <TouchableOpacity
                                     style={styles.controlBtn}
                                     onPress={() => {
-                                        if (driverLoc) {
-                                            if (Platform.OS === 'web') {
-                                                // On web, centering is usually handled via props or direct leaflet manipulation
-                                                // but since driverLoc is now reactive from context, 
-                                                // we just need the map to respond.
-                                            } else {
-                                                mapRef.current?.animateToRegion({
+                                        if (isNavigating && driverLoc && mapRef.current) {
+                                            // If navigating, center on driver location
+                                            if (Platform.OS !== 'web') {
+                                                mapRef.current.animateToRegion({
                                                     ...driverLoc,
+                                                    latitudeDelta: 0.01,
+                                                    longitudeDelta: 0.01
+                                                });
+                                            }
+                                        } else if (destinationLoc && mapRef.current) {
+                                            // If not navigating, center on destination
+                                            if (Platform.OS !== 'web') {
+                                                mapRef.current.animateToRegion({
+                                                    ...destinationLoc,
                                                     latitudeDelta: 0.01,
                                                     longitudeDelta: 0.01
                                                 });
