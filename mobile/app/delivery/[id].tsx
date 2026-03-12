@@ -223,14 +223,20 @@ const DeliveryDetailScreen = () => {
                                 <TouchableOpacity
                                     style={styles.controlBtn}
                                     onPress={() => {
-                                        if (driverLoc) {
-                                            if (Platform.OS === 'web') {
-                                                // On web, centering is usually handled via props or direct leaflet manipulation
-                                                // but since driverLoc is now reactive from context, 
-                                                // we just need the map to respond.
-                                            } else {
-                                                mapRef.current?.animateToRegion({
+                                        if (isNavigating && driverLoc && mapRef.current) {
+                                            // If navigating, center on driver location
+                                            if (Platform.OS !== 'web') {
+                                                mapRef.current.animateToRegion({
                                                     ...driverLoc,
+                                                    latitudeDelta: 0.01,
+                                                    longitudeDelta: 0.01
+                                                });
+                                            }
+                                        } else if (destinationLoc && mapRef.current) {
+                                            // If not navigating, center on destination
+                                            if (Platform.OS !== 'web') {
+                                                mapRef.current.animateToRegion({
+                                                    ...destinationLoc,
                                                     latitudeDelta: 0.01,
                                                     longitudeDelta: 0.01
                                                 });
@@ -275,7 +281,7 @@ const DeliveryDetailScreen = () => {
                         </View>
                     </View>
 
-                    {delivery.scheduledDeliveryDate && (
+                    {(delivery.scheduledDeliveryDate || delivery.createdAt) && (
                         <View style={styles.section}>
                             <Text style={styles.sectionTitle}>Scheduled Delivery</Text>
                             <View style={styles.infoCard}>
@@ -283,17 +289,17 @@ const DeliveryDetailScreen = () => {
                                     <Ionicons name="calendar" size={24} color={Colors.primary} />
                                     <View style={styles.textGroup}>
                                         <Text style={styles.primaryText}>
-                                            {new Date(delivery.scheduledDeliveryDate).toLocaleDateString('en-IN', { 
-                                                weekday: 'long', 
-                                                year: 'numeric', 
-                                                month: 'long', 
-                                                day: 'numeric' 
+                                            {new Date(delivery.scheduledDeliveryDate || delivery.createdAt).toLocaleDateString('en-IN', {
+                                                weekday: 'long',
+                                                year: 'numeric',
+                                                month: 'long',
+                                                day: 'numeric'
                                             })}
                                         </Text>
                                         <Text style={styles.secondaryText}>
-                                            {new Date(delivery.scheduledDeliveryDate).toLocaleTimeString('en-IN', { 
-                                                hour: '2-digit', 
-                                                minute: '2-digit' 
+                                            {new Date(delivery.scheduledDeliveryDate || delivery.createdAt).toLocaleTimeString('en-IN', {
+                                                hour: '2-digit',
+                                                minute: '2-digit'
                                             })}
                                         </Text>
                                     </View>

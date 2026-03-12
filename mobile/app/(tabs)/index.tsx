@@ -219,29 +219,7 @@ export default function DashboardScreen() {
                     />
                 </View>
 
-                <View style={styles.quickActions}>
-                    <Text style={styles.sectionTitle}>Quick Actions</Text>
-                    <View style={styles.actionRow}>
-                        <TouchableOpacity style={styles.actionItem}>
-                            <View style={[styles.actionIcon, { backgroundColor: '#e0f2fe' }]}>
-                                <Ionicons name="navigate-outline" size={24} color="#0284c7" />
-                            </View>
-                            <Text style={styles.actionText}>Route map</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.actionItem}>
-                            <View style={[styles.actionIcon, { backgroundColor: '#fef3c7' }]}>
-                                <Ionicons name="help-circle-outline" size={24} color="#d97706" />
-                            </View>
-                            <Text style={styles.actionText}>Support</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.actionItem}>
-                            <View style={[styles.actionIcon, { backgroundColor: '#f3e8ff' }]}>
-                                <Ionicons name="settings-outline" size={24} color="#9333ea" />
-                            </View>
-                            <Text style={styles.actionText}>Settings</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
+
             </ScrollView>
         </SafeAreaView>
     );
@@ -403,29 +381,5 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.2,
         shadowRadius: 8,
         elevation: 4,
-    },
-    quickActions: {
-        marginBottom: 24,
-    },
-    actionRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-    },
-    actionItem: {
-        alignItems: 'center',
-        width: '30%',
-    },
-    actionIcon: {
-        width: 56,
-        height: 56,
-        borderRadius: 16,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 8,
-    },
-    actionText: {
-        fontSize: 13,
-        fontWeight: '600',
-        color: Colors.text,
     },
 });

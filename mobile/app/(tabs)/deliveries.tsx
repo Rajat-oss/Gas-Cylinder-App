@@ -25,6 +25,7 @@ export default function DeliveriesScreen() {
     const [deliveries, setDeliveries] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [selectedFilter, setSelectedFilter] = useState('All');
 
     const mapDeliveryData = (data: Delivery[]) => {
         return data.map(d => ({
@@ -132,6 +133,12 @@ export default function DeliveriesScreen() {
         </View>
     );
 
+    // Filter deliveries based on selected filter
+    const filteredDeliveries = deliveries.filter(delivery => {
+        if (selectedFilter === 'All') return true;
+        return delivery.deliveryStatus === selectedFilter;
+    });
+
     if (loading) {
         return (
             <View style={styles.loaderContainer}>
@@ -145,15 +152,19 @@ export default function DeliveriesScreen() {
             <View style={styles.filterContainer}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
                     {['All', 'Assigned', 'Out for Delivery', 'Delivered', 'Cancelled'].map((filter) => (
-                        <TouchableOpacity key={filter} style={[styles.filterChip, filter === 'All' && styles.activeFilterChip]}>
-                            <Text style={[styles.filterText, filter === 'All' && styles.activeFilterText]}>{filter}</Text>
+                        <TouchableOpacity 
+                            key={filter} 
+                            style={[styles.filterChip, filter === selectedFilter && styles.activeFilterChip]}
+                            onPress={() => setSelectedFilter(filter)}
+                        >
+                            <Text style={[styles.filterText, filter === selectedFilter && styles.activeFilterText]}>{filter}</Text>
                         </TouchableOpacity>
                     ))}
                 </ScrollView>
             </View>
 
             <FlatList
-                data={deliveries}
+                data={filteredDeliveries}
                 keyExtractor={(item) => item.id}
                 contentContainerStyle={styles.listContent}
                 renderItem={({ item }) => (
