@@ -35,90 +35,128 @@ export default function ProfileScreen() {
     };
 
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={styles.container} edges={['top']}>
             <Stack.Screen options={{ headerShown: false }} />
-            <ScrollView contentContainerStyle={styles.content}>
-                <View style={styles.header}>
-                    <View style={styles.onlineStatus}>
-                        <View style={[styles.statusDot, { backgroundColor: isOnline ? Colors.success : Colors.danger }]} />
-                        <Text style={styles.statusText}>{isOnline ? 'Online' : 'Offline'}</Text>
-                        <Switch
-                            value={isOnline}
-                            onValueChange={setIsOnline}
-                            trackColor={{ false: Colors.border, true: Colors.success + '50' }}
-                            thumbColor={isOnline ? Colors.success : '#f4f3f4'}
-                        />
+            <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+                {/* Gradient Header */}
+                <View style={styles.gradientHeader}>
+                    <View style={styles.headerContent}>
+                        <View style={styles.onlineStatusContainer}>
+                            <View style={[styles.statusDot, { backgroundColor: isOnline ? '#10B981' : '#EF4444' }]} />
+                            <Text style={styles.statusText}>{isOnline ? 'Online' : 'Offline'}</Text>
+                            <Switch
+                                value={isOnline}
+                                onValueChange={setIsOnline}
+                                trackColor={{ false: '#94A3B8', true: '#10B981' }}
+                                thumbColor={'#FFFFFF'}
+                                style={styles.switch}
+                            />
+                        </View>
                     </View>
                 </View>
 
-                <View style={styles.profileInfo}>
+                {/* Avatar Section - Overlapping */}
+                <View style={styles.avatarSection}>
                     <View style={styles.avatarContainer}>
-                        <Ionicons name="person" size={50} color={Colors.primary} />
+                        <View style={styles.avatarCircle}>
+                            <Ionicons name="person" size={56} color="#FFFFFF" />
+                        </View>
                     </View>
-                    <Text style={styles.name}>{user?.name}</Text>
-                    <Text style={styles.role}>{user?.role}</Text>
+                    <Text style={styles.driverName}>{user?.name}</Text>
+                    <Text style={styles.vehicleNumber}>{user?.vehicleNumber || 'Vehicle not assigned'}</Text>
                 </View>
 
-                <View style={styles.detailsCard}>
-                    <View style={styles.detailItem}>
-                        <Ionicons name="call-outline" size={24} color={Colors.textLight} />
-                        <View style={styles.detailText}>
-                            <Text style={styles.detailLabel}>Phone Number</Text>
-                            <Text style={styles.detailValue}>{user?.phone || '+91 XXXXX XXXXX'}</Text>
+                {/* Driver Info Card */}
+                <View style={styles.infoCard}>
+                    <View style={styles.infoRow}>
+                        <View style={styles.infoIconContainer}>
+                            <Ionicons name="call" size={20} color="#2563EB" />
+                        </View>
+                        <View style={styles.infoTextContainer}>
+                            <Text style={styles.infoLabel}>Phone Number</Text>
+                            <Text style={styles.infoValue}>{user?.phone || '+91 XXXXX XXXXX'}</Text>
                         </View>
                     </View>
+
                     <View style={styles.divider} />
-                    <View style={styles.detailItem}>
-                        <Ionicons name="mail-outline" size={24} color={Colors.textLight} />
-                        <View style={styles.detailText}>
-                            <Text style={styles.detailLabel}>Employee ID (Email)</Text>
-                            <Text style={styles.detailValue}>{user?.email}</Text>
+
+                    <View style={styles.infoRow}>
+                        <View style={styles.infoIconContainer}>
+                            <Ionicons name="card" size={20} color="#10B981" />
+                        </View>
+                        <View style={styles.infoTextContainer}>
+                            <Text style={styles.infoLabel}>License Number</Text>
+                            <Text style={styles.infoValue}>{user?.licenseNumber || 'Not assigned'}</Text>
                         </View>
                     </View>
+
                     <View style={styles.divider} />
-                    <View style={styles.detailItem}>
-                        <Ionicons name="car-outline" size={24} color={Colors.textLight} />
-                        <View style={styles.detailText}>
-                            <Text style={styles.detailLabel}>Vehicle Number</Text>
-                            <Text style={styles.detailValue}>{user?.vehicleNumber || 'Not assigned'}</Text>
+
+                    <View style={styles.infoRow}>
+                        <View style={styles.infoIconContainer}>
+                            <Ionicons name="car" size={20} color="#F59E0B" />
+                        </View>
+                        <View style={styles.infoTextContainer}>
+                            <Text style={styles.infoLabel}>Vehicle Number</Text>
+                            <Text style={styles.infoValue}>{user?.vehicleNumber || 'Not assigned'}</Text>
                         </View>
                     </View>
+
                     <View style={styles.divider} />
-                    <View style={styles.detailItem}>
-                        <Ionicons name="card-outline" size={24} color={Colors.textLight} />
-                        <View style={styles.detailText}>
-                            <Text style={styles.detailLabel}>License Number</Text>
-                            <Text style={styles.detailValue}>{user?.licenseNumber || 'Not assigned'}</Text>
+
+                    <View style={styles.infoRow}>
+                        <View style={styles.infoIconContainer}>
+                            <Ionicons name="mail" size={20} color="#8B5CF6" />
+                        </View>
+                        <View style={styles.infoTextContainer}>
+                            <Text style={styles.infoLabel}>Employee ID</Text>
+                            <Text style={styles.infoValue}>{user?.email}</Text>
                         </View>
                     </View>
                 </View>
 
-                <View style={styles.menuCard}>
-                    <TouchableOpacity style={styles.menuItem}>
-                        <Ionicons name="shield-checkmark-outline" size={24} color={Colors.primary} />
-                        <Text style={styles.menuText}>Privacy & Security</Text>
-                        <Ionicons name="chevron-forward" size={20} color={Colors.border} />
+                {/* Menu Options */}
+                <View style={styles.menuSection}>
+                    <TouchableOpacity style={styles.menuCard}>
+                        <View style={[styles.menuIconContainer, { backgroundColor: '#DBEAFE' }]}>
+                            <Ionicons name="receipt" size={22} color="#2563EB" />
+                        </View>
+                        <Text style={styles.menuText}>Transaction History</Text>
+                        <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
                     </TouchableOpacity>
-                    <View style={styles.divider} />
-                    <TouchableOpacity style={styles.menuItem}>
-                        <Ionicons name="help-buoy-outline" size={24} color={Colors.primary} />
+
+                    <TouchableOpacity style={styles.menuCard}>
+                        <View style={[styles.menuIconContainer, { backgroundColor: '#FCE7F3' }]}>
+                            <Ionicons name="notifications" size={22} color="#EC4899" />
+                        </View>
+                        <Text style={styles.menuText}>Notifications</Text>
+                        <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={styles.menuCard}>
+                        <View style={[styles.menuIconContainer, { backgroundColor: '#D1FAE5' }]}>
+                            <Ionicons name="help-buoy" size={22} color="#10B981" />
+                        </View>
                         <Text style={styles.menuText}>Help & Support</Text>
-                        <Ionicons name="chevron-forward" size={20} color={Colors.border} />
+                        <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
                     </TouchableOpacity>
-                    <View style={styles.divider} />
-                    <TouchableOpacity style={styles.menuItem}>
-                        <Ionicons name="settings-outline" size={24} color={Colors.primary} />
-                        <Text style={styles.menuText}>App Settings</Text>
-                        <Ionicons name="chevron-forward" size={20} color={Colors.border} />
+
+                    <TouchableOpacity style={styles.menuCard}>
+                        <View style={[styles.menuIconContainer, { backgroundColor: '#E0E7FF' }]}>
+                            <Ionicons name="settings" size={22} color="#6366F1" />
+                        </View>
+                        <Text style={styles.menuText}>Settings</Text>
+                        <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
                     </TouchableOpacity>
                 </View>
 
+                {/* Logout Button */}
                 <CustomButton
                     title="Logout"
                     onPress={handleLogout}
                     variant="outline"
                     style={styles.logoutBtn}
-                    textStyle={{ color: Colors.danger }}
+                    textStyle={{ color: Colors.danger, fontWeight: '700' }}
                 />
 
                 <Text style={styles.version}>Version 1.0.42 (Beta)</Text>
@@ -130,25 +168,30 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Colors.background,
+        backgroundColor: '#F8FAFC',
     },
     content: {
-        padding: 20,
+        paddingBottom: 40,
     },
-    header: {
+    gradientHeader: {
+        height: 180,
+        backgroundColor: '#2563EB',
+        borderBottomLeftRadius: 32,
+        borderBottomRightRadius: 32,
+        paddingHorizontal: 20,
+        paddingTop: 20,
+    },
+    headerContent: {
         flexDirection: 'row',
         justifyContent: 'flex-end',
-        marginBottom: 20,
     },
-    onlineStatus: {
+    onlineStatusContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: Colors.surface,
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 20,
-        borderWidth: 1,
-        borderColor: Colors.border,
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        paddingHorizontal: 14,
+        paddingVertical: 8,
+        borderRadius: 24,
         gap: 8,
     },
     statusDot: {
@@ -159,92 +202,133 @@ const styles = StyleSheet.create({
     statusText: {
         fontSize: 14,
         fontWeight: '700',
-        color: Colors.text,
+        color: '#FFFFFF',
     },
-    profileInfo: {
+    switch: {
+        transform: [{ scaleX: 0.9 }, { scaleY: 0.9 }],
+    },
+    avatarSection: {
         alignItems: 'center',
-        marginBottom: 32,
+        marginTop: -60,
+        marginBottom: 24,
     },
     avatarContainer: {
-        width: 100,
-        height: 100,
-        borderRadius: 50,
-        backgroundColor: Colors.primary + '10',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.2,
+        shadowRadius: 16,
+        elevation: 8,
+    },
+    avatarCircle: {
+        width: 120,
+        height: 120,
+        borderRadius: 60,
+        backgroundColor: '#4F46E5',
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 16,
-        borderWidth: 4,
-        borderColor: Colors.surface,
+        borderWidth: 6,
+        borderColor: '#FFFFFF',
     },
-    name: {
-        fontSize: 22,
+    driverName: {
+        fontSize: 26,
         fontWeight: '800',
         color: Colors.text,
+        marginTop: 16,
+        letterSpacing: -0.5,
     },
-    role: {
-        fontSize: 14,
-        color: Colors.primary,
+    vehicleNumber: {
+        fontSize: 15,
         fontWeight: '600',
+        color: Colors.primary,
         marginTop: 4,
+        letterSpacing: 1,
     },
-    detailsCard: {
-        backgroundColor: Colors.surface,
+    infoCard: {
+        backgroundColor: '#FFFFFF',
         borderRadius: 20,
-        padding: 16,
-        marginBottom: 20,
-        borderWidth: 1,
-        borderColor: Colors.border,
+        padding: 20,
+        marginHorizontal: 20,
+        marginBottom: 24,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        elevation: 4,
     },
-    detailItem: {
+    infoRow: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingVertical: 12,
     },
-    detailText: {
-        marginLeft: 16,
+    infoIconContainer: {
+        width: 44,
+        height: 44,
+        borderRadius: 12,
+        backgroundColor: '#F8FAFC',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 14,
     },
-    detailLabel: {
+    infoTextContainer: {
+        flex: 1,
+    },
+    infoLabel: {
         fontSize: 12,
-        color: Colors.textLight,
-    },
-    detailValue: {
-        fontSize: 16,
         fontWeight: '600',
+        color: Colors.textLight,
+        marginBottom: 2,
+    },
+    infoValue: {
+        fontSize: 15,
+        fontWeight: '700',
         color: Colors.text,
     },
     divider: {
         height: 1,
-        backgroundColor: Colors.border,
-        marginLeft: 40,
+        backgroundColor: '#F1F5F9',
+        marginLeft: 58,
+    },
+    menuSection: {
+        paddingHorizontal: 20,
+        gap: 12,
+        marginBottom: 24,
     },
     menuCard: {
-        backgroundColor: Colors.surface,
-        borderRadius: 20,
-        padding: 8,
-        borderWidth: 1,
-        borderColor: Colors.border,
-        marginBottom: 32,
-    },
-    menuItem: {
         flexDirection: 'row',
         alignItems: 'center',
+        backgroundColor: '#FFFFFF',
         padding: 16,
+        borderRadius: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+        elevation: 3,
+    },
+    menuIconContainer: {
+        width: 44,
+        height: 44,
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 14,
     },
     menuText: {
         flex: 1,
         fontSize: 16,
-        fontWeight: '600',
+        fontWeight: '700',
         color: Colors.text,
-        marginLeft: 16,
     },
     logoutBtn: {
+        marginHorizontal: 20,
         borderColor: Colors.danger,
+        borderWidth: 2,
     },
     version: {
         textAlign: 'center',
         color: Colors.textLight,
         fontSize: 12,
         marginTop: 24,
-        marginBottom: 20,
+        fontWeight: '500',
     },
 });

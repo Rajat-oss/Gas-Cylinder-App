@@ -12,7 +12,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppMap } from '../../components/AppMap';
 import { CustomButton } from '../../components/CustomButton';
-import { SummaryCard } from '../../components/SummaryCard';
 import { Colors } from '../../constants/Colors';
 import { useAuth } from '../../context/AuthContext';
 import { useLocation } from '../../context/LocationContext';
@@ -36,7 +35,6 @@ export default function DashboardScreen() {
             const data = await deliveryService.getDeliveries();
             setDeliveries(data);
 
-            // Geocode nearest/relevant task for dashboard map
             const relevantOrder = data.find(d => d.status === 'OUT_FOR_DELIVERY') || data.find(d => d.status === 'PENDING');
             if (relevantOrder) {
                 if (relevantOrder.latitude && relevantOrder.longitude) {
@@ -101,8 +99,6 @@ export default function DashboardScreen() {
         upi: deliveries.reduce((total, d) => total + (d.transactions?.filter((t: any) => t.paymentType === 'UPI').reduce((sum: number, t: any) => sum + t.amount, 0) || 0), 0),
     };
 
-
-
     return (
         <SafeAreaView style={styles.container}>
             <ScrollView
@@ -112,36 +108,57 @@ export default function DashboardScreen() {
                 }
             >
                 <View style={styles.header}>
-                    <View>
-                        <Text style={styles.greeting}>Hello, {user?.name || 'User'}!</Text>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: socketConnected ? Colors.success : (location ? Colors.primary : Colors.danger) }} />
-                            <Text style={[styles.date, { marginTop: 0 }]}>
-                                {socketConnected ? 'Real-time Linked' : (location ? 'Tracking Active' : 'Offline')}
-                            </Text>
+                    <View style={styles.headerLeft}>
+                        <View style={styles.avatarContainer}>
+                            <Ionicons name="person" size={28} color="#FFFFFF" />
+                        </View>
+                        <View>
+                            <Text style={styles.greeting}>Hello, {user?.name || 'User'}!</Text>
+                            <View style={styles.statusContainer}>
+                                <View style={[styles.statusDot, { backgroundColor: socketConnected ? Colors.success : (location ? Colors.info : Colors.danger) }]} />
+                                <Text style={styles.statusText}>
+                                    {socketConnected ? 'Real-time Linked' : (location ? 'Tracking Active' : 'Offline')}
+                                </Text>
+                            </View>
                         </View>
                     </View>
                     <TouchableOpacity
                         style={styles.notificationBtn}
                         onPress={() => router.push('/notifications')}
                     >
-                        <Ionicons name="notifications-outline" size={24} color={Colors.text} />
+                        <Ionicons name="notifications" size={24} color={Colors.primary} />
                         {deliveries.some(d => d.status === 'PENDING') && <View style={styles.badge} />}
                     </TouchableOpacity>
                 </View>
 
+                {/* Welcome Banner */}
+                <View style={styles.welcomeBanner}>
+                    <View style={styles.bannerContent}>
+                        <View>
+                            <Text style={styles.bannerTitle}>Gas Delivery Partner</Text>
+                            <Text style={styles.bannerSubtitle}>Track your deliveries in real-time</Text>
+                        </View>
+                        <View style={styles.bannerIcon}>
+                            <Ionicons name="flame" size={36} color="#FFFFFF" />
+                        </View>
+                    </View>
+                </View>
+
                 {/* Live Fleet Tracking Section */}
                 <View style={styles.trackingContainer}>
-                    <View style={styles.trackingHeader}>
-                        <Text style={styles.sectionTitle}>Fleet Tracking</Text>
+                    <View style={styles.mapBox}>
                         {location && (
-                            <View style={styles.activeLabel}>
-                                <View style={styles.pulse} />
-                                <Text style={styles.activeText}>LIVE</Text>
+                            <View style={styles.liveBadge}>
+                                <View style={styles.pulseDot} />
+                                <Text style={styles.liveText}>LIVE</Text>
                             </View>
                         )}
-                    </View>
-                    <View style={styles.mapBox}>
+                        {location && (
+                            <View style={styles.gpsChip}>
+                                <Ionicons name="navigate" size={14} color={Colors.success} />
+                                <Text style={styles.gpsText}>GPS Active</Text>
+                            </View>
+                        )}
                         <AppMap
                             mapRef={mapRef}
                             driverLoc={location}
@@ -150,8 +167,11 @@ export default function DashboardScreen() {
                         />
                         {!location && (
                             <View style={styles.mapOverlay}>
-                                <Ionicons name="location-outline" size={40} color={Colors.textLight} />
-                                <Text style={styles.overlayText}>Enable GPS for live tracking</Text>
+                                <View style={styles.overlayCard}>
+                                    <Ionicons name="location-outline" size={48} color={Colors.primary} />
+                                    <Text style={styles.overlayTitle}>Enable GPS</Text>
+                                    <Text style={styles.overlayText}>Turn on location for live tracking</Text>
+                                </View>
                             </View>
                         )}
                         {location && (
@@ -165,48 +185,63 @@ export default function DashboardScreen() {
                                     });
                                 }}
                             >
-                                <Ionicons name="locate" size={20} color={Colors.primary} />
+                                <Ionicons name="locate" size={22} color="#FFFFFF" />
                             </TouchableOpacity>
                         )}
                     </View>
                 </View>
 
                 <View style={styles.summaryContainer}>
-                    <Text style={styles.sectionTitle}>Daily Overview</Text>
+                    <Text style={styles.sectionTitle}>Today's Overview</Text>
                     <View style={styles.statsGrid}>
-                        <SummaryCard
-                            label="Assigned"
-                            value={stats.assigned}
-                            icon={<Ionicons name="clipboard-outline" size={20} color={Colors.primary} />}
-                        />
-                        <SummaryCard
-                            label="Delivered"
-                            value={stats.delivered}
-                            color={Colors.success}
-                            icon={<Ionicons name="checkmark-circle-outline" size={20} color={Colors.success} />}
-                        />
-                        <SummaryCard
-                            label="Pending"
-                            value={stats.pending}
-                            color={Colors.warning}
-                            icon={<Ionicons name="time-outline" size={20} color={Colors.warning} />}
-                        />
-                        <SummaryCard
-                            label="Total Earnings"
-                            value={`₹${stats.cash + stats.upi}`}
-                            color={Colors.primary}
-                            icon={<Ionicons name="wallet-outline" size={20} color={Colors.primary} />}
-                        />
+                        <View style={[styles.statCard, styles.statCardBlue]}>
+                            <View style={styles.statIconContainer}>
+                                <Ionicons name="clipboard" size={20} color="#FFFFFF" />
+                            </View>
+                            <Text style={styles.statNumber}>{stats.assigned}</Text>
+                            <Text style={styles.statLabel}>Assigned</Text>
+                        </View>
+                        <View style={[styles.statCard, styles.statCardGreen]}>
+                            <View style={styles.statIconContainer}>
+                                <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
+                            </View>
+                            <Text style={styles.statNumber}>{stats.delivered}</Text>
+                            <Text style={styles.statLabel}>Delivered</Text>
+                        </View>
+                        <View style={[styles.statCard, styles.statCardOrange]}>
+                            <View style={styles.statIconContainer}>
+                                <Ionicons name="time" size={20} color="#FFFFFF" />
+                            </View>
+                            <Text style={styles.statNumber}>{stats.pending}</Text>
+                            <Text style={styles.statLabel}>Pending</Text>
+                        </View>
+                        <View style={[styles.statCard, styles.statCardPurple]}>
+                            <View style={styles.statIconContainer}>
+                                <Ionicons name="wallet" size={20} color="#FFFFFF" />
+                            </View>
+                            <Text style={styles.statNumber}>₹{stats.cash + stats.upi}</Text>
+                            <Text style={styles.statLabel}>Total Earnings</Text>
+                        </View>
                     </View>
 
                     <View style={styles.paymentSplit}>
-                        <View style={[styles.paymentCard, { borderLeftColor: Colors.success }]}>
-                            <Text style={styles.paymentLabel}>Cash Collected</Text>
-                            <Text style={styles.paymentValue}>₹{stats.cash}</Text>
+                        <View style={[styles.paymentCard, styles.cashCard]}>
+                            <View style={styles.paymentIconContainer}>
+                                <Ionicons name="cash" size={24} color="#FFFFFF" />
+                            </View>
+                            <View style={styles.paymentContent}>
+                                <Text style={styles.paymentLabel}>Cash Collected</Text>
+                                <Text style={styles.paymentValue}>₹{stats.cash}</Text>
+                            </View>
                         </View>
-                        <View style={[styles.paymentCard, { borderLeftColor: Colors.primary }]}>
-                            <Text style={styles.paymentLabel}>UPI Collected</Text>
-                            <Text style={styles.paymentValue}>₹{stats.upi}</Text>
+                        <View style={[styles.paymentCard, styles.upiCard]}>
+                            <View style={styles.paymentIconContainer}>
+                                <Ionicons name="card" size={24} color="#FFFFFF" />
+                            </View>
+                            <View style={styles.paymentContent}>
+                                <Text style={styles.paymentLabel}>UPI Collected</Text>
+                                <Text style={styles.paymentValue}>₹{stats.upi}</Text>
+                            </View>
                         </View>
                     </View>
 
@@ -218,8 +253,6 @@ export default function DashboardScreen() {
                         size="lg"
                     />
                 </View>
-
-
             </ScrollView>
         </SafeAreaView>
     );
@@ -228,158 +261,342 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Colors.background,
+        backgroundColor: '#F5F5F7',
     },
     scrollContent: {
-        padding: 20,
+        padding: 24,
+        paddingBottom: 40,
     },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 24,
+        marginBottom: 20,
+    },
+    headerLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 14,
+    },
+    avatarContainer: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        backgroundColor: Colors.primary,
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: Colors.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 5,
     },
     greeting: {
         fontSize: 24,
         fontWeight: '800',
         color: Colors.text,
+        letterSpacing: -0.8,
     },
-    date: {
-        fontSize: 14,
-        color: Colors.textLight,
+    statusContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
         marginTop: 4,
     },
+    statusDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+    },
+    statusText: {
+        fontSize: 13,
+        color: Colors.textLight,
+        fontWeight: '600',
+    },
     notificationBtn: {
-        width: 44,
-        height: 44,
-        borderRadius: 12,
-        backgroundColor: Colors.surface,
+        width: 52,
+        height: 52,
+        borderRadius: 16,
+        backgroundColor: '#FFFFFF',
         justifyContent: 'center',
         alignItems: 'center',
-        borderWidth: 1,
-        borderColor: Colors.border,
+        shadowColor: Colors.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+        elevation: 4,
     },
     badge: {
         position: 'absolute',
         top: 10,
-        right: 12,
-        width: 8,
-        height: 8,
-        borderRadius: 4,
+        right: 10,
+        width: 12,
+        height: 12,
+        borderRadius: 6,
         backgroundColor: Colors.danger,
-        borderWidth: 1,
-        borderColor: Colors.surface,
+        borderWidth: 2,
+        borderColor: '#FFFFFF',
+    },
+    welcomeBanner: {
+        backgroundColor: Colors.primary,
+        borderRadius: 24,
+        padding: 20,
+        marginBottom: 24,
+        shadowColor: Colors.primary,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 16,
+        elevation: 6,
+    },
+    bannerContent: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    bannerTitle: {
+        fontSize: 20,
+        fontWeight: '800',
+        color: '#FFFFFF',
+        marginBottom: 4,
+        letterSpacing: -0.5,
+    },
+    bannerSubtitle: {
+        fontSize: 14,
+        color: 'rgba(255,255,255,0.9)',
+        fontWeight: '500',
+    },
+    bannerIcon: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     trackingContainer: {
         marginBottom: 24,
     },
-    trackingHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 16,
-    },
-    activeLabel: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#fef2f2',
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 8,
-        gap: 6,
-    },
-    pulse: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: Colors.danger,
-    },
-    activeText: {
-        fontSize: 10,
-        fontWeight: '900',
-        color: Colors.danger,
-    },
     mapBox: {
-        height: 180,
+        height: 240,
         backgroundColor: Colors.surface,
         borderRadius: 24,
         overflow: 'hidden',
-        borderWidth: 1,
-        borderColor: Colors.border,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.12,
+        shadowRadius: 16,
+        elevation: 6,
     },
-    mapOverlay: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(255,255,255,0.8)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        gap: 8,
-    },
-    overlayText: {
-        fontSize: 14,
-        color: Colors.textLight,
-        fontWeight: '600',
-    },
-    recenterBtn: {
+    liveBadge: {
         position: 'absolute',
-        bottom: 12,
-        right: 12,
-        backgroundColor: 'white',
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        justifyContent: 'center',
+        top: 16,
+        left: 16,
+        backgroundColor: Colors.danger,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 12,
+        flexDirection: 'row',
         alignItems: 'center',
+        gap: 6,
+        zIndex: 10,
+        shadowColor: Colors.danger,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    pulseDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: '#FFFFFF',
+    },
+    liveText: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: '#FFFFFF',
+        letterSpacing: 0.5,
+    },
+    gpsChip: {
+        position: 'absolute',
+        top: 16,
+        right: 16,
+        backgroundColor: '#FFFFFF',
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        zIndex: 10,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 4,
         elevation: 3,
-        borderWidth: 1,
-        borderColor: Colors.border,
     },
-    summaryContainer: {
-        marginBottom: 24,
+    gpsText: {
+        fontSize: 11,
+        fontWeight: '600',
+        color: Colors.success,
     },
-    sectionTitle: {
+    mapOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    overlayCard: {
+        alignItems: 'center',
+        backgroundColor: Colors.surface,
+        padding: 32,
+        borderRadius: 24,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+        elevation: 4,
+    },
+    overlayTitle: {
         fontSize: 18,
         fontWeight: '700',
         color: Colors.text,
-        marginBottom: 16,
+        marginTop: 12,
+    },
+    overlayText: {
+        fontSize: 14,
+        color: Colors.textLight,
+        marginTop: 4,
+    },
+    recenterBtn: {
+        position: 'absolute',
+        bottom: 16,
+        right: 16,
+        backgroundColor: Colors.primary,
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: Colors.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 5,
+    },
+    summaryContainer: {
+        marginBottom: 32,
+    },
+    sectionTitle: {
+        fontSize: 22,
+        fontWeight: '800',
+        color: Colors.text,
+        marginBottom: 18,
+        letterSpacing: -0.8,
     },
     statsGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         justifyContent: 'space-between',
+        marginBottom: 20,
+    },
+    statCard: {
+        width: '48%',
+        borderRadius: 14,
+        padding: 12,
+        marginBottom: 10,
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.12,
+        shadowRadius: 8,
+        elevation: 4,
+    },
+    statCardBlue: {
+        backgroundColor: Colors.primary,
+    },
+    statCardGreen: {
+        backgroundColor: Colors.success,
+    },
+    statCardOrange: {
+        backgroundColor: Colors.warning,
+    },
+    statCardPurple: {
+        backgroundColor: Colors.accent,
+    },
+    statIconContainer: {
+        width: 38,
+        height: 38,
+        borderRadius: 19,
+        backgroundColor: 'rgba(255,255,255,0.25)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 6,
+    },
+    statNumber: {
+        fontSize: 20,
+        fontWeight: '800',
+        color: '#FFFFFF',
+        letterSpacing: -0.8,
+        marginBottom: 2,
+    },
+    statLabel: {
+        fontSize: 10,
+        color: 'rgba(255,255,255,0.9)',
+        fontWeight: '600',
     },
     paymentSplit: {
         flexDirection: 'row',
-        gap: 12,
+        gap: 14,
         marginBottom: 20,
     },
     paymentCard: {
         flex: 1,
-        backgroundColor: Colors.surface,
-        padding: 12,
-        borderRadius: 12,
-        borderLeftWidth: 4,
-        borderWidth: 1,
-        borderColor: Colors.border,
+        padding: 14,
+        borderRadius: 14,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.12,
+        shadowRadius: 8,
+        elevation: 4,
+    },
+    cashCard: {
+        backgroundColor: Colors.success,
+    },
+    upiCard: {
+        backgroundColor: Colors.success,
+    },
+    paymentIconContainer: {
+        width: 40,
+        height: 40,
+        borderRadius: 10,
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    paymentContent: {
+        flex: 1,
     },
     paymentLabel: {
-        fontSize: 12,
-        color: Colors.textLight,
-        marginBottom: 4,
+        fontSize: 10,
+        color: 'rgba(255,255,255,0.9)',
+        marginBottom: 2,
+        fontWeight: '600',
     },
     paymentValue: {
-        fontSize: 16,
+        fontSize: 18,
         fontWeight: '700',
-        color: Colors.text,
+        color: '#FFFFFF',
     },
     mainActionBtn: {
         shadowColor: Colors.primary,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-        elevation: 4,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 16,
+        elevation: 8,
+        marginTop: 4,
     },
 });

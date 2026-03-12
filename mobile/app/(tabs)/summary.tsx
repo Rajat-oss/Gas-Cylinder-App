@@ -3,7 +3,6 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
     RefreshControl,
     ScrollView,
     StyleSheet,
@@ -13,11 +12,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBadge } from '../../components/StatusBadge';
-import { SummaryCard } from '../../components/SummaryCard';
 import { Colors } from '../../constants/Colors';
 import { useAuth } from '../../context/AuthContext';
 import { Delivery, deliveryService } from '../../services/deliveryService';
 import socketService from '../../services/socket';
+
 export default function SummaryScreen() {
     const router = useRouter();
     const [deliveries, setDeliveries] = useState<Delivery[]>([]);
@@ -97,27 +96,33 @@ export default function SummaryScreen() {
         }
     });
 
-    const maxVal = Math.max(...chartData.map(d => d.value));
+    const maxVal = Math.max(...chartData.map(d => d.value), 1);
 
     return (
         <SafeAreaView style={styles.container}>
             <ScrollView
                 contentContainerStyle={styles.content}
                 refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.primary]} />
                 }
             >
-                <Text style={styles.sectionTitle}>Performance Analytics</Text>
+                <Text style={styles.pageTitle}>Performance Analytics</Text>
 
+                {/* Weekly Chart */}
                 <View style={styles.chartCard}>
                     <Text style={styles.chartTitle}>Deliveries this Week</Text>
                     <View style={styles.chartContainer}>
                         {chartData.map((data, index) => (
                             <View key={index} style={styles.barWrapper}>
+                                <View style={styles.barValueContainer}>
+                                    {data.value > 0 && (
+                                        <Text style={styles.barValue}>{data.value}</Text>
+                                    )}
+                                </View>
                                 <View
                                     style={[
                                         styles.bar,
-                                        { height: maxVal > 0 ? (data.value / maxVal) * 120 : 0 }
+                                        { height: (data.value / maxVal) * 100 }
                                     ]}
                                 />
                                 <Text style={styles.barLabel}>{data.label}</Text>
@@ -126,32 +131,42 @@ export default function SummaryScreen() {
                     </View>
                 </View>
 
-                <View style={styles.statsGrid}>
-                    <SummaryCard
-                        label="Total Deliveries"
-                        value={stats.total}
-                        icon={<Ionicons name="bicycle-outline" size={20} color={Colors.primary} />}
-                    />
-                    <SummaryCard
-                        label="Total Earnings"
-                        value={`₹${stats.cash + stats.upi}`}
-                        color={Colors.success}
-                        icon={<Ionicons name="trending-up-outline" size={20} color={Colors.success} />}
-                    />
-                    <SummaryCard
-                        label="Cash Total"
-                        value={`₹${stats.cash}`}
-                        color={Colors.warning}
-                        icon={<Ionicons name="cash-outline" size={20} color={Colors.warning} />}
-                    />
-                    <SummaryCard
-                        label="UPI Total"
-                        value={`₹${stats.upi}`}
-                        color={Colors.primary}
-                        icon={<Ionicons name="qr-code-outline" size={20} color={Colors.primary} />}
-                    />
+                {/* Performance Cards */}
+                <View style={styles.performanceGrid}>
+                    <View style={[styles.performanceCard, styles.cardBlue]}>
+                        <View style={styles.cardIconContainer}>
+                            <Ionicons name="bicycle-outline" size={24} color="#2563EB" />
+                        </View>
+                        <Text style={styles.cardValue}>{stats.total}</Text>
+                        <Text style={styles.cardLabel}>Total Deliveries</Text>
+                    </View>
+
+                    <View style={[styles.performanceCard, styles.cardGreen]}>
+                        <View style={styles.cardIconContainer}>
+                            <Ionicons name="trending-up-outline" size={24} color="#10B981" />
+                        </View>
+                        <Text style={styles.cardValue}>₹{stats.cash + stats.upi}</Text>
+                        <Text style={styles.cardLabel}>Total Earnings</Text>
+                    </View>
+
+                    <View style={[styles.performanceCard, styles.cardOrange]}>
+                        <View style={styles.cardIconContainer}>
+                            <Ionicons name="cash-outline" size={24} color="#F59E0B" />
+                        </View>
+                        <Text style={styles.cardValue}>₹{stats.cash}</Text>
+                        <Text style={styles.cardLabel}>Cash Total</Text>
+                    </View>
+
+                    <View style={[styles.performanceCard, styles.cardPurple]}>
+                        <View style={styles.cardIconContainer}>
+                            <Ionicons name="qr-code-outline" size={24} color="#8B5CF6" />
+                        </View>
+                        <Text style={styles.cardValue}>₹{stats.upi}</Text>
+                        <Text style={styles.cardLabel}>UPI Total</Text>
+                    </View>
                 </View>
 
+                {/* Transaction History */}
                 <View style={styles.sectionHeader}>
                     <Text style={styles.sectionTitle}>Transaction History</Text>
                     <TouchableOpacity 
@@ -201,8 +216,8 @@ export default function SummaryScreen() {
                                     <View style={styles.historyIcon}>
                                         <Ionicons
                                             name={t.paymentType === 'UPI' ? 'qr-code-outline' : 'cash-outline'}
-                                            size={20}
-                                            color={Colors.textLight}
+                                            size={22}
+                                            color={t.paymentType === 'UPI' ? '#8B5CF6' : '#F59E0B'}
                                         />
                                     </View>
                                     <View style={styles.historyInfo}>
@@ -218,7 +233,10 @@ export default function SummaryScreen() {
                         })
                     )}
                     {deliveries.filter(d => d.status === 'DELIVERED' && d.transactions && d.transactions.length > 0).length === 0 && (
-                        <Text style={styles.noData}>No completed deliveries yet.</Text>
+                        <View style={styles.emptyState}>
+                            <Ionicons name="receipt-outline" size={48} color={Colors.border} />
+                            <Text style={styles.noData}>No completed deliveries yet.</Text>
+                        </View>
                     )}
                 </View>
             </ScrollView>
@@ -229,24 +247,135 @@ export default function SummaryScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Colors.background,
+        backgroundColor: '#F8FAFC',
     },
     content: {
         padding: 20,
+        paddingBottom: 40,
     },
-    sectionTitle: {
-        fontSize: 18,
+    pageTitle: {
+        fontSize: 28,
+        fontWeight: '800',
+        color: Colors.text,
+        marginBottom: 24,
+        letterSpacing: -1,
+    },
+    chartCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 18,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        elevation: 4,
+    },
+    chartTitle: {
+        fontSize: 16,
         fontWeight: '700',
         color: Colors.text,
         marginBottom: 16,
-        marginTop: 8,
+    },
+    chartContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-end',
+        height: 100,
+        paddingTop: 12,
+    },
+    barWrapper: {
+        alignItems: 'center',
+        flex: 1,
+    },
+    barValueContainer: {
+        height: 20,
+        justifyContent: 'center',
+        marginBottom: 4,
+    },
+    barValue: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: Colors.primary,
+    },
+    bar: {
+        width: 20,
+        backgroundColor: Colors.primary,
+        borderRadius: 6,
+        marginBottom: 6,
+        minHeight: 4,
+    },
+    barLabel: {
+        fontSize: 10,
+        fontWeight: '600',
+        color: Colors.textLight,
+        marginTop: 4,
+    },
+    performanceGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 10,
+        marginBottom: 20,
+    },
+    performanceCard: {
+        width: '48%',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 14,
+        padding: 14,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        elevation: 4,
+    },
+    cardBlue: {
+        borderLeftWidth: 4,
+        borderLeftColor: '#2563EB',
+    },
+    cardGreen: {
+        borderLeftWidth: 4,
+        borderLeftColor: '#10B981',
+    },
+    cardOrange: {
+        borderLeftWidth: 4,
+        borderLeftColor: '#F59E0B',
+    },
+    cardPurple: {
+        borderLeftWidth: 4,
+        borderLeftColor: '#8B5CF6',
+    },
+    cardIconContainer: {
+        width: 40,
+        height: 40,
+        borderRadius: 10,
+        backgroundColor: '#F8FAFC',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    cardValue: {
+        fontSize: 22,
+        fontWeight: '800',
+        color: Colors.text,
+        marginBottom: 3,
+        letterSpacing: -0.5,
+    },
+    cardLabel: {
+        fontSize: 11,
+        fontWeight: '600',
+        color: Colors.textLight,
     },
     sectionHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         marginBottom: 16,
-        marginTop: 8,
+    },
+    sectionTitle: {
+        fontSize: 20,
+        fontWeight: '800',
+        color: Colors.text,
+        letterSpacing: -0.5,
     },
     viewAllBtn: {
         flexDirection: 'row',
@@ -255,96 +384,66 @@ const styles = StyleSheet.create({
     },
     viewAllText: {
         fontSize: 14,
-        fontWeight: '600',
+        fontWeight: '700',
         color: Colors.primary,
     },
-    chartCard: {
-        backgroundColor: Colors.surface,
-        padding: 20,
-        borderRadius: 24,
-        marginBottom: 24,
-        borderWidth: 1,
-        borderColor: Colors.border,
-    },
-    chartTitle: {
-        fontSize: 14,
-        color: Colors.textLight,
-        marginBottom: 20,
-    },
-    chartContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-end',
-        height: 150,
-    },
-    barWrapper: {
-        alignItems: 'center',
-        width: '10%',
-    },
-    bar: {
-        width: 12,
-        backgroundColor: Colors.primary,
-        borderRadius: 6,
-        marginBottom: 8,
-    },
-    barLabel: {
-        fontSize: 10,
-        color: Colors.textLight,
-    },
-    statsGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'space-between',
-        marginBottom: 8,
-    },
     historyCard: {
-        backgroundColor: Colors.surface,
-        borderRadius: 24,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
         padding: 16,
-        borderWidth: 1,
-        borderColor: Colors.border,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        elevation: 4,
     },
     historyItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 12,
+        paddingVertical: 10,
         borderBottomWidth: 1,
-        borderBottomColor: Colors.border,
+        borderBottomColor: '#F1F5F9',
     },
     historyIcon: {
         width: 40,
         height: 40,
-        borderRadius: 12,
-        backgroundColor: Colors.background,
+        borderRadius: 10,
+        backgroundColor: '#F8FAFC',
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 12,
+        marginRight: 10,
     },
     historyInfo: {
         flex: 1,
     },
     historyName: {
         fontSize: 15,
-        fontWeight: '600',
+        fontWeight: '700',
         color: Colors.text,
+        marginBottom: 2,
     },
     historyDate: {
         fontSize: 12,
         color: Colors.textLight,
-        marginTop: 2,
+        fontWeight: '500',
     },
     historyAmount: {
         alignItems: 'flex-end',
     },
     amountText: {
         fontSize: 15,
-        fontWeight: '700',
+        fontWeight: '800',
         color: Colors.success,
         marginBottom: 4,
+    },
+    emptyState: {
+        alignItems: 'center',
+        paddingVertical: 40,
     },
     noData: {
         textAlign: 'center',
         color: Colors.textLight,
-        padding: 20,
+        fontSize: 14,
+        marginTop: 12,
     },
 });

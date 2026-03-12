@@ -1,9 +1,11 @@
 export const Colors = {
     primary: '#2563eb', // Professional blue
     secondary: '#64748b', // Slate gray
+    accent: '#8b5cf6', // Violet for premium cards
     success: '#10b981', // Green for delivered
     warning: '#f59e0b', // Orange for out for delivery
     danger: '#ef4444', // Red for cancelled
+    info: '#0ea5e9', // Sky blue
     background: '#f8fafc', // Light gray background
     surface: '#ffffff', // White cards
     text: '#0f172a', // Dark text

@@ -1,26 +1,39 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
+import { Platform } from 'react-native';
 import { Colors } from '../../constants/Colors';
 
 export default function TabLayout() {
     return (
         <Tabs
             screenOptions={{
-                tabBarActiveTintColor: Colors.primary,
-                tabBarInactiveTintColor: Colors.secondary,
+                tabBarActiveTintColor: '#2563EB',
+                tabBarInactiveTintColor: '#94A3B8',
                 tabBarStyle: {
-                    backgroundColor: Colors.surface,
-                    borderTopWidth: 1,
-                    borderTopColor: Colors.border,
-                    height: 80,
-                    paddingBottom: 8,
-                    paddingTop: 8,
-                    elevation: 8,
+                    position: 'absolute',
+                    backgroundColor: '#FFFFFF',
+                    borderTopWidth: 0,
+                    height: 70,
+                    paddingBottom: 10,
+                    paddingTop: 10,
+                    paddingHorizontal: 16,
+                    marginHorizontal: 16,
+                    marginBottom: Platform.OS === 'ios' ? 20 : 16,
+                    borderRadius: 24,
+                    elevation: 12,
                     shadowColor: '#000',
-                    shadowOffset: { width: 0, height: -2 },
+                    shadowOffset: { width: 0, height: 6 },
                     shadowOpacity: 0.1,
-                    shadowRadius: 8,
+                    shadowRadius: 12,
+                },
+                tabBarLabelStyle: {
+                    fontSize: 11,
+                    fontWeight: '600',
+                    marginTop: 4,
+                },
+                tabBarItemStyle: {
+                    paddingVertical: 4,
                 },
                 headerStyle: {
                     backgroundColor: Colors.surface,
@@ -36,8 +49,8 @@ export default function TabLayout() {
                 name="index"
                 options={{
                     title: 'Dashboard',
-                    tabBarIcon: ({ color, size }) => (
-                        <Ionicons name="grid-outline" size={size} color={color} />
+                    tabBarIcon: ({ color, focused }) => (
+                        <Ionicons name={focused ? "home" : "home-outline"} size={22} color={color} />
                     ),
                 }}
             />
@@ -45,8 +58,8 @@ export default function TabLayout() {
                 name="deliveries"
                 options={{
                     title: 'Deliveries',
-                    tabBarIcon: ({ color, size }) => (
-                        <Ionicons name="list-outline" size={size} color={color} />
+                    tabBarIcon: ({ color, focused }) => (
+                        <Ionicons name={focused ? "cube" : "cube-outline"} size={22} color={color} />
                     ),
                 }}
             />
@@ -54,8 +67,8 @@ export default function TabLayout() {
                 name="summary"
                 options={{
                     title: 'Summary',
-                    tabBarIcon: ({ color, size }) => (
-                        <Ionicons name="bar-chart-outline" size={size} color={color} />
+                    tabBarIcon: ({ color, focused }) => (
+                        <Ionicons name={focused ? "bar-chart" : "bar-chart-outline"} size={22} color={color} />
                     ),
                 }}
             />
@@ -63,8 +76,8 @@ export default function TabLayout() {
                 name="profile"
                 options={{
                     title: 'Profile',
-                    tabBarIcon: ({ color, size }) => (
-                        <Ionicons name="person-outline" size={size} color={color} />
+                    tabBarIcon: ({ color, focused }) => (
+                        <Ionicons name={focused ? "person" : "person-outline"} size={22} color={color} />
                     ),
                 }}
             />
