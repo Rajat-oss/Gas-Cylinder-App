@@ -16,7 +16,7 @@ const { initSocket } = require('./lib/socket');
 const app = express();
 const httpServer = createServer(app);
 const io = initSocket(httpServer);
-const PORT = process.env.PORT || PORT;
+const PORT = process.env.PORT || 5000;
 
 app.use(cors());
 app.use(express.json());
