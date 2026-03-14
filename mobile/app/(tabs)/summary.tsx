@@ -25,10 +25,9 @@ export default function SummaryScreen() {
 
     const fetchData = React.useCallback(async () => {
         const data = await deliveryService.getDeliveries();
-        const myDeliveries = data.filter(d => d.assignedStaffId === user?.id);
-        setDeliveries(myDeliveries);
+        setDeliveries(data);
         setRefreshing(false);
-    }, [user?.id]);
+    }, []);
 
     const onRefresh = React.useCallback(() => {
         setRefreshing(true);
@@ -178,14 +177,17 @@ export default function SummaryScreen() {
                     </TouchableOpacity>
                 </View>
                 <View style={styles.historyCard}>
-                    {deliveries.filter(d => {
-                        if (d.status !== 'DELIVERED' || !d.transactions || d.transactions.length === 0) return false;
-                        
-                        const deliveryDate = new Date(d.createdAt);
-                        const sevenDaysAgo = new Date();
-                        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-                        return deliveryDate >= sevenDaysAgo;
-                    }).flatMap((item) =>
+                    {deliveries.filter(d =>
+                        d.status === 'DELIVERED' && d.transactions && d.transactions.length > 0
+                    ).length === 0 && (
+                        <View style={styles.emptyState}>
+                            <Ionicons name="receipt-outline" size={48} color={Colors.border} />
+                            <Text style={styles.noData}>No completed deliveries yet.</Text>
+                        </View>
+                    )}
+                    {deliveries.filter(d =>
+                        d.status === 'DELIVERED' && d.transactions && d.transactions.length > 0
+                    ).flatMap((item) =>
                         item.transactions!.map(t => {
                             // Get delivery date - use createdAt as actual delivery date
                             const deliveryDate = new Date(item.createdAt);
@@ -231,12 +233,6 @@ export default function SummaryScreen() {
                                 </View>
                             );
                         })
-                    )}
-                    {deliveries.filter(d => d.status === 'DELIVERED' && d.transactions && d.transactions.length > 0).length === 0 && (
-                        <View style={styles.emptyState}>
-                            <Ionicons name="receipt-outline" size={48} color={Colors.border} />
-                            <Text style={styles.noData}>No completed deliveries yet.</Text>
-                        </View>
                     )}
                 </View>
             </ScrollView>
