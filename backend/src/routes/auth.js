@@ -23,7 +23,7 @@ router.post('/register', async (req, res) => {
                 name,
                 role: role || 'MANAGER',
                 phone,
-                isApproved: (role === 'ADMIN' || role === 'STAFF' || role === 'DRIVER') ? true : false
+                isApproved: (role === 'ADMIN' || role === 'MANAGER' || role === 'STAFF' || role === 'DRIVER') ? true : false
             }
         });
 

@@ -251,19 +251,27 @@ const StaffManagement = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     try {
+      // Clear driver-specific fields if role is not DRIVER
+      const dataToSubmit = { ...formData };
+      if (dataToSubmit.role !== "DRIVER") {
+        dataToSubmit.vehicleNumber = "";
+        dataToSubmit.licenseNumber = "";
+      }
+
       if (editingStaff) {
-        await api.put(`/staff/${editingStaff.id}`, formData);
+        await api.put(`/staff/${editingStaff.id}`, dataToSubmit);
         toast.success("Staff details updated");
       } else {
-        await api.post("/staff", formData);
+        await api.post("/staff", dataToSubmit);
         toast.success("New staff member added");
       }
       setIsModalOpen(false);
       fetchStaff();
     } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to save staff");
+      console.error("[StaffManagement] Submit error:", err);
+      const errorMessage = err.response?.data?.message || err.message || "Failed to save staff";
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
