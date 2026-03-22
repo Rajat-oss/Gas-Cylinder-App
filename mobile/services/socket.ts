@@ -1,9 +1,19 @@
 import { io, Socket } from 'socket.io-client';
-import api from './api';
 
-// Derive socket URL from the same base URL as API (strip /api suffix)
-const rawBase = api.defaults.baseURL || 'http://10.128.174.142:5000';
-const SOCKET_URL = rawBase.replace('/api', '');
+// Development detection
+const isDevelopment = typeof __DEV__ !== 'undefined' && __DEV__;
+
+// Socket URL configuration - same logic as API
+const envApiUrl = process.env.EXPO_PUBLIC_API_URL;
+let SOCKET_URL: string;
+
+if (envApiUrl) {
+    SOCKET_URL = envApiUrl;
+} else if (isDevelopment) {
+    SOCKET_URL = 'http://10.0.2.2:5002'; // Match backend port
+} else {
+    SOCKET_URL = 'https://gas-cylinder-app.onrender.com';
+}
 
 class SocketService {
     private socket: Socket | null = null;
@@ -11,19 +21,24 @@ class SocketService {
     connect() {
         if (!this.socket) {
             this.socket = io(SOCKET_URL, {
-                transports: ['websocket'],
+                transports: ['websocket', 'polling'],
                 autoConnect: true,
-                reconnectionAttempts: 10,
-                timeout: 5000,
+                reconnectionAttempts: 5,
+                reconnectionDelay: 2000,
+                timeout: 10000,
             });
 
-            this.socket.on('connect', () => { });
+            this.socket.on('connect', () => {
+                console.log('Socket connected to:', SOCKET_URL);
+            });
 
             this.socket.on('connect_error', (err) => {
                 console.error('Socket connection error:', err.message);
             });
 
-            this.socket.on('disconnect', (reason) => { });
+            this.socket.on('disconnect', (reason) => {
+                console.log('Socket disconnected:', reason);
+            });
         }
         return this.socket;
     }
@@ -44,6 +59,12 @@ class SocketService {
     off(event: string, callback?: (data: any) => void) {
         if (this.socket) {
             this.socket.off(event, callback);
+        }
+    }
+
+    emit(event: string, data: any) {
+        if (this.socket && this.socket.connected) {
+            this.socket.emit(event, data);
         }
     }
 }

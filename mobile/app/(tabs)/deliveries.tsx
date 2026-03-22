@@ -44,19 +44,42 @@ export default function DeliveriesScreen() {
 
     const fetchData = useCallback(async () => {
         try {
+            if (!user) {
+                setDeliveries([]);
+                return;
+            }
+            setLoading(true);
             const data = await deliveryService.getDeliveries();
             // Filter by assigned staff if it's a driver
             const myDeliveries = data.filter(d => d.assignedStaffId === user?.id);
             setDeliveries(mapDeliveryData(myDeliveries));
-        } catch (error) {
-            console.error('Fetch error:', error);
-            Alert.alert('Error', 'Failed to load deliveries');
+        } catch (error: any) {
+            // Silently handle errors when user is logged out
+            if (!user) {
+                console.log('Skipping error alert - user logged out');
+                return;
+            }
+            console.error('Fetch deliveries error:', error);
+            let errorMessage = 'Failed to load deliveries';
+            
+            if (error.response?.status === 401) {
+                errorMessage = 'Session expired. Please login again.';
+            } else if (!error.response) {
+                errorMessage = 'Network error. Please check your connection.';
+            }
+            
+            Alert.alert('Error', errorMessage);
         } finally {
             setLoading(false);
         }
     }, [user?.id]);
 
     useEffect(() => {
+        if (!user) {
+            setDeliveries([]);
+            return;
+        }
+
         fetchData();
 
         const socket = socketService.connect();
@@ -93,10 +116,11 @@ export default function DeliveriesScreen() {
     }, [user?.id, fetchData]);
 
     const onRefresh = useCallback(async () => {
+        if (!user) return;
         setRefreshing(true);
         await fetchData();
         setRefreshing(false);
-    }, [fetchData]);
+    }, [fetchData, user]);
 
     const handleUpdateStatus = async (id: string, statusText: string) => {
         const backendStatus = statusText === 'Out for Delivery' ? 'OUT_FOR_DELIVERY' :

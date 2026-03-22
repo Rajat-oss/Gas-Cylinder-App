@@ -5,16 +5,29 @@ let io;
 const initSocket = (server) => {
     io = new Server(server, {
         cors: {
-            origin: '*', // Adjust this in production
-            methods: ['GET', 'POST']
-        }
+            origin: [
+                'http://localhost:8081',
+                'http://10.0.2.2:8081',
+                /^exp:\/\/.*/, // Expo development
+                'https://gas-cylinder-app.onrender.com'
+            ],
+            methods: ['GET', 'POST'],
+            credentials: true
+        },
+        transports: ['websocket', 'polling'],
+        pingTimeout: 60000,
+        pingInterval: 25000
     });
 
     io.on('connection', (socket) => {
         console.log('Client connected:', socket.id);
 
-        socket.on('disconnect', () => {
-            console.log('Client disconnected:', socket.id);
+        socket.on('error', (error) => {
+            console.error('Socket error:', error);
+        });
+
+        socket.on('disconnect', (reason) => {
+            console.log('Client disconnected:', socket.id, 'Reason:', reason);
         });
     });
 
@@ -23,7 +36,12 @@ const initSocket = (server) => {
 
 const getIO = () => {
     if (!io) {
-        throw new Error('Socket.io not initialized!');
+        console.warn('Socket.io not initialized, creating mock emitter');
+        return {
+            emit: (event, data) => {
+                console.log('Mock emit:', event, data);
+            }
+        };
     }
     return io;
 };

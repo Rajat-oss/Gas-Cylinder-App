@@ -24,10 +24,16 @@ export default function SummaryScreen() {
     const { user } = useAuth();
 
     const fetchData = React.useCallback(async () => {
-        const data = await deliveryService.getDeliveries();
-        setDeliveries(data);
-        setRefreshing(false);
-    }, []);
+        try {
+            if (!user) return; // Don't fetch if user is not logged in
+            const data = await deliveryService.getDeliveries();
+            setDeliveries(data);
+            setRefreshing(false);
+        } catch (error) {
+            console.error('Summary fetch error:', error);
+            setRefreshing(false);
+        }
+    }, [user]);
 
     const onRefresh = React.useCallback(() => {
         setRefreshing(true);

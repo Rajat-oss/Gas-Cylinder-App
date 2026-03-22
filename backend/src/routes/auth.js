@@ -201,24 +201,35 @@ router.patch('/location', authenticateToken, async (req, res) => {
 // Logout route
 router.post('/logout', authenticateToken, async (req, res) => {
     try {
-        await prisma.user.update({
-            where: { id: req.user.id },
-            data: { isOnline: false }
+        // Check if user still exists in database
+        const user = await prisma.user.findUnique({
+            where: { id: req.user.id }
         });
 
-        // Real-time update via Socket.io
-        try {
-            const { getIO } = require('../lib/socket');
-            getIO().emit('staffStatusUpdate', { id: req.user.id, isOnline: false });
-        } catch (err) { }
+        if (user) {
+            await prisma.user.update({
+                where: { id: req.user.id },
+                data: { 
+                    isOnline: false,
+                    lastSeen: new Date()
+                }
+            });
+
+            // Real-time update via Socket.io
+            try {
+                const { getIO } = require('../lib/socket');
+                getIO().emit('staffStatusUpdate', { id: req.user.id, isOnline: false });
+            } catch (err) {
+                console.error('Socket emit error (Logout):', err.message);
+            }
+        }
 
         res.json({ message: 'Logged out successfully' });
     } catch (error) {
-        if (error.code === 'P2025') {
-            return res.status(401).json({ message: 'User not found or deleted' });
-        }
         console.error('Logout error:', error);
-        res.status(500).json({ message: 'Internal server error' });
+        // Even if there's an error, we should still return success for logout
+        // as the client will clear the token anyway
+        res.json({ message: 'Logged out successfully' });
     }
 });
 

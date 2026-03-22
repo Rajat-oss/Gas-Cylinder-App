@@ -46,6 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const login = async (email: string, password: string) => {
         try {
+            setLoading(true);
             const response = await api.post('/auth/login', { email, password });
             const { token, user: loggedUser } = response.data;
 
@@ -63,23 +64,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return true;
         } catch (error: any) {
             console.error('Login error:', error);
-            const msg = error.response?.data?.message || 'Login failed. Please check your credentials.';
-            Alert.alert('Error', msg);
+            let msg = 'Login failed. Please check your credentials.';
+            
+            if (error.response?.data?.message) {
+                msg = error.response.data.message;
+            } else if (error.message?.includes('Network error')) {
+                msg = 'Network error. Please check your internet connection.';
+            } else if (!error.response) {
+                msg = 'Unable to connect to server. Please try again later.';
+            }
+            
+            Alert.alert('Login Failed', msg);
             return false;
+        } finally {
+            setLoading(false);
         }
     };
 
     const logout = async () => {
-        try {
-            await api.post('/auth/logout');
-        } catch {
-            // Silently fail if backend logout fails
-        }
+        // Clear local data first to prevent any API calls
         await storage.deleteItem('token');
         await storage.deleteItem('user');
         setToken(null);
         setUser(null);
+        
+        // Navigate to login immediately
         router.replace('/(auth)/login' as any);
+        
+        // Try to notify backend about logout in background (optional)
+        try {
+            if (token) {
+                await api.post('/auth/logout');
+            }
+        } catch (error) {
+            // Silently ignore backend logout errors
+            console.log('Backend logout notification failed (expected)');
+        }
     };
 
     return (

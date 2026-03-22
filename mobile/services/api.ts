@@ -4,29 +4,13 @@ import { storage } from './storage';
 // Development detection - __DEV__ is true in development builds, false in production
 const isDevelopment = typeof __DEV__ !== 'undefined' && __DEV__;
 
-// API URL configuration
-// In development: use localhost (ensure backend runs on same machine)
-// In production: use the deployed backend URL
-const envApiUrl = process.env.EXPO_PUBLIC_API_URL;
-let BASE_URL: string;
+// API URL configuration - Always use production backend
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://gas-cylinder-app.onrender.com';
 
-if (envApiUrl) {
-    // Explicit override takes priority
-    BASE_URL = envApiUrl;
-} else if (isDevelopment) {
-    // Default to localhost in development
-    console.warn('[API] Using localhost for development. Set EXPO_PUBLIC_API_URL to override.');
-    BASE_URL = 'http://10.0.2.2:5000'; // 10.0.2.2 is Android emulator's localhost
-} else {
-    // Production fallback
-    console.warn('[API] EXPO_PUBLIC_API_URL not set, using production fallback');
-    BASE_URL = 'https://gas-cylinder-app.onrender.com';
-}
-
-// NOTE: Render deployment uses routes WITHOUT /api prefix
+// NOTE: Backend routes use /api prefix
 const api = axios.create({
-    baseURL: `${BASE_URL}`,
-    timeout: 10000,
+    baseURL: `${BASE_URL}/api`,
+    timeout: 15000,
     headers: {
         'Content-Type': 'application/json',
     }
@@ -55,11 +39,22 @@ api.interceptors.response.use(
     (response) => response,
     async (error) => {
         const isLoginRequest = error.config?.url?.includes('/auth/login');
+        const isLogoutRequest = error.config?.url?.includes('/auth/logout');
 
-        if (error.response?.status === 401 && !isLoginRequest) {
-            // Signal a session expiry (component will handle the redirect via AuthContext)
-            console.warn('[API] Unauthorized access - Session might be expired');
+        if (error.response?.status === 401 && !isLoginRequest && !isLogoutRequest) {
+            // Clear stored credentials on 401
+            const { storage } = require('./storage');
+            await storage.deleteItem('token');
+            await storage.deleteItem('user');
+            console.warn('[API] Session expired - Credentials cleared');
         }
+        
+        // Handle network errors
+        if (!error.response) {
+            console.error('[API] Network error:', error.message);
+            error.message = 'Network error. Please check your connection.';
+        }
+        
         return Promise.reject(error);
     }
 );

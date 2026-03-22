@@ -32,6 +32,12 @@ export default function DashboardScreen() {
 
     const fetchData = React.useCallback(async () => {
         try {
+            if (!user) {
+                // Clear data when user is logged out
+                setDeliveries([]);
+                setActiveDestination(null);
+                return;
+            }
             const data = await deliveryService.getDeliveries();
             setDeliveries(data);
 
@@ -47,9 +53,14 @@ export default function DashboardScreen() {
                 setActiveDestination(null);
             }
         } catch (error) {
+            // Silently handle errors when user is logged out
+            if (!user) {
+                console.log('Skipping dashboard error - user logged out');
+                return;
+            }
             console.error('Dashboard fetch error:', error);
         }
-    }, []);
+    }, [user]);
 
     useEffect(() => {
         if (location && activeDestination) {
@@ -60,6 +71,12 @@ export default function DashboardScreen() {
     }, [location, activeDestination]);
 
     useEffect(() => {
+        if (!user) {
+            // Don't setup socket or fetch data if user is not logged in
+            setSocketConnected(false);
+            return;
+        }
+
         fetchData();
 
         const socket = socketService.connect();
@@ -86,10 +103,11 @@ export default function DashboardScreen() {
     }, [user?.id, fetchData]);
 
     const onRefresh = React.useCallback(async () => {
+        if (!user) return; // Don't refresh if user is not logged in
         setRefreshing(true);
         await fetchData();
         setRefreshing(false);
-    }, [fetchData]);
+    }, [fetchData, user]);
 
     const stats = {
         assigned: deliveries.length,

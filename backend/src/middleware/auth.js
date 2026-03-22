@@ -13,11 +13,6 @@ const authenticateToken = (req, res, next) => {
         req.user = decoded;
         next();
     } catch (error) {
-        if (error.name === 'TokenExpiredError') {
-            console.log('User session expired');
-        } else {
-            console.error('Authentication Error:', error.message);
-        }
         res.status(401).json({ message: 'Session expired. Please login again.' });
     }
 };
