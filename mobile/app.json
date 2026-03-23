@@ -23,7 +23,7 @@
       "package": "com.ryzenop07.gas_cylinder_app",
       "config": {
         "googleMaps": {
-          "apiKey": "$EXPO_PUBLIC_GOOGLE_MAPS_API_KEY"
+          "apiKey": "AIzaSyB3CNb8ArXDKZHov__-rO2XEoPD5CdEGII"
         }
       }
     },
@@ -55,8 +55,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "47c26400-2288-481c-a535-775388ecd7a5"
+        "projectId": "ba4e645a-969c-4d72-87a8-7ad0bc10dd86"
       }
-    }
+    },
+    "owner": "vishalpraj07"
   }
 }
