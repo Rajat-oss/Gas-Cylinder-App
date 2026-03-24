@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import MapView, { Marker, Polyline } from 'react-native-maps';
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import { Colors } from '../constants/Colors';
 
 interface AppMapProps {
@@ -21,6 +21,7 @@ export const AppMap: React.FC<AppMapProps> = ({ mapRef, driverLoc, destinationLo
         <MapView
             ref={mapRef}
             style={styles.map}
+            provider={PROVIDER_GOOGLE}
             onMapReady={onMapReady}
             initialRegion={{
                 latitude: driverLoc?.latitude || destinationLoc?.latitude || 20.5937,
