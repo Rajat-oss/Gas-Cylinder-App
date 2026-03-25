@@ -1,5 +1,4 @@
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
+import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from "@react-google-maps/api";
 import {
     MapPin,
     Navigation,
@@ -10,23 +9,20 @@ import {
     Truck,
     LocateFixed,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import api from "../services/api";
-import { searchLocation } from "../services/rapidMaps";
+import { searchLocation, getGoogleMapKey } from "../services/rapidMaps";
 import socketService from "../services/socket";
 
-// Fix for default marker icons in modern bundlers
-const iconUrl = "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png";
-const shadowUrl = "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png";
+const containerStyle = {
+  width: '100%',
+  height: '100%'
+};
 
-const DefaultIcon = L.icon({
-  iconUrl,
-  shadowUrl,
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
+const defaultCenter = {
+  lat: 28.6139,
+  lng: 77.209
+};
 
 // Driver Card Component
 const DriverStatusCard = ({ driver, onFocus }) => (
@@ -60,7 +56,7 @@ const DriverStatusCard = ({ driver, onFocus }) => (
         </div>
       </div>
       <button
-        onClick={() => driver.latitude && onFocus([driver.latitude, driver.longitude])}
+        onClick={() => driver.latitude && onFocus(driver.latitude, driver.longitude)}
         className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-500 hover:text-[#1F2933] transition-all"
         title="Locate Driver"
         disabled={!driver.latitude}
@@ -114,42 +110,26 @@ const DriverStatusCard = ({ driver, onFocus }) => (
   </div>
 );
 
-const LiveMonitoring = () => {
+const LiveMonitoringContent = ({ apiKey }) => {
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: apiKey
+  });
+
+  const [mapInstance, setMapInstance] = useState(null);
   const [drivers, setDrivers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [searching, setSearching] = useState(false);
+  const [selectedDriver, setSelectedDriver] = useState(null);
+  const [searchResult, setSearchResult] = useState(null);
 
-  const mapRef = useRef(null);
-  const mapInstance = useRef(null);
-  const markersRef = useRef({});
+  const onLoad = useCallback(function callback(map) {
+    setMapInstance(map);
+  }, []);
 
-  useEffect(() => {
-    if (mapRef.current && !mapInstance.current) {
-      try {
-        const map = L.map(mapRef.current, {
-          center: [28.6139, 77.209],
-          zoom: 13,
-          zoomControl: false,
-          layers: [
-            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-              attribution: '&copy; OpenStreetMap contributors',
-            }),
-          ],
-        });
-        L.control.zoom({ position: "bottomright" }).addTo(map);
-        mapInstance.current = map;
-      } catch (err) {
-        console.error("Map initialization error:", err);
-      }
-    }
-
-    return () => {
-      if (mapInstance.current) {
-        mapInstance.current.remove();
-        mapInstance.current = null;
-      }
-    };
+  const onUnmount = useCallback(function callback(map) {
+    setMapInstance(null);
   }, []);
 
   const fetchDrivers = async () => {
@@ -157,29 +137,6 @@ const LiveMonitoring = () => {
       const res = await api.get("/staff");
       const activeDrivers = res.data.filter((u) => u.role === "DRIVER");
       setDrivers(activeDrivers);
-
-      const onlineDriverIds = new Set();
-      activeDrivers.forEach((driver) => {
-        if (driver.isOnline && driver.latitude && driver.longitude) {
-          onlineDriverIds.add(driver.id);
-          const coords = [driver.latitude, driver.longitude];
-
-          if (markersRef.current[driver.id]) {
-            markersRef.current[driver.id].setLatLng(coords);
-          } else {
-            const marker = L.marker(coords, { icon: DefaultIcon }).addTo(mapInstance.current)
-              .bindPopup(`<div class="p-2"><h4 class="font-semibold text-gray-900">${driver.name}</h4><p class="text-xs text-gray-600">${driver.vehicleNumber || "No Vehicle"}</p></div>`);
-            markersRef.current[driver.id] = marker;
-          }
-        }
-      });
-
-      Object.keys(markersRef.current).forEach((id) => {
-        if (!onlineDriverIds.has(id)) {
-          markersRef.current[id].remove();
-          delete markersRef.current[id];
-        }
-      });
     } catch (err) {
       console.error(err);
     } finally {
@@ -197,21 +154,16 @@ const LiveMonitoring = () => {
           d.id === update.id ? { ...d, latitude: update.latitude, longitude: update.longitude, isOnline: true } : d
         )
       );
-      if (update.latitude && update.longitude && mapInstance.current) {
-        const coords = [update.latitude, update.longitude];
-        if (markersRef.current[update.id]) {
-          markersRef.current[update.id].setLatLng(coords);
-        }
-      }
     });
 
     const interval = setInterval(fetchDrivers, 30000);
     return () => { clearInterval(interval); socket.off("driverLocationUpdate"); };
   }, []);
 
-  const handleFocusDriver = (coords) => {
-    if (mapInstance.current) {
-      mapInstance.current.setView(coords, 16, { animate: true });
+  const handleFocusDriver = (lat, lng) => {
+    if (mapInstance) {
+      mapInstance.panTo({ lat, lng });
+      mapInstance.setZoom(16);
     }
   };
 
@@ -229,14 +181,11 @@ const LiveMonitoring = () => {
           lng = parseFloat(firstResult.longitude);
         }
         if (lat && lng) {
-          mapInstance.current.flyTo([lat, lng], 15, { duration: 2 });
-          L.marker([lat, lng], {
-            icon: L.divIcon({
-              html: `<div class="w-4 h-4 bg-red-500 border-2 border-white rounded-full"></div>`,
-              className: "",
-              iconSize: [16, 16],
-            }),
-          }).addTo(mapInstance.current).bindPopup(`<b>${firstResult.address || searchQuery}</b>`).openPopup();
+          if (mapInstance) {
+            mapInstance.panTo({ lat, lng });
+            mapInstance.setZoom(15);
+          }
+          setSearchResult({ lat, lng, address: firstResult.address || searchQuery });
         }
       }
     } catch (err) {
@@ -302,7 +251,6 @@ const LiveMonitoring = () => {
 
       {/* Map Section */}
       <div className="relative">
-        {/* Floating Control Panel */}
         <div className="absolute top-4 left-4 z-10 hidden md:block">
           <div className="bg-white border border-gray-200 p-4 rounded-xl shadow-lg flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center">
@@ -320,12 +268,92 @@ const LiveMonitoring = () => {
 
         <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden" style={{ boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.04)' }}>
           <div className="h-[500px] relative">
-            <div ref={mapRef} style={{ height: "100%", width: "100%" }} className="z-0" />
+            {isLoaded ? (
+              <GoogleMap
+                mapContainerStyle={containerStyle}
+                center={defaultCenter}
+                zoom={13}
+                onLoad={onLoad}
+                onUnmount={onUnmount}
+                options={{
+                  disableDefaultUI: false,
+                  zoomControl: true,
+                }}
+              >
+                {drivers.filter((d) => d.isOnline && d.latitude && d.longitude).map((driver) => (
+                  <Marker
+                    key={driver.id}
+                    position={{ lat: driver.latitude, lng: driver.longitude }}
+                    onClick={() => setSelectedDriver(driver)}
+                    icon={{
+                      url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png"
+                    }}
+                  />
+                ))}
+
+                {selectedDriver && (
+                  <InfoWindow
+                    position={{ lat: selectedDriver.latitude, lng: selectedDriver.longitude }}
+                    onCloseClick={() => setSelectedDriver(null)}
+                  >
+                    <div className="p-1">
+                      <h4 className="font-semibold text-gray-900">{selectedDriver.name}</h4>
+                      <p className="text-xs text-gray-600">{selectedDriver.vehicleNumber || "No Vehicle"}</p>
+                    </div>
+                  </InfoWindow>
+                )}
+
+                {searchResult && (
+                  <InfoWindow
+                    position={{ lat: searchResult.lat, lng: searchResult.lng }}
+                    onCloseClick={() => setSearchResult(null)}
+                  >
+                    <div className="p-1">
+                      <h4 className="font-semibold text-gray-900">{searchResult.address}</h4>
+                    </div>
+                  </InfoWindow>
+                )}
+                
+                {searchResult && (
+                  <Marker
+                    position={{ lat: searchResult.lat, lng: searchResult.lng }}
+                    icon={{
+                      url: "http://maps.google.com/mapfiles/ms/icons/red-dot.png"
+                    }}
+                  />
+                )}
+              </GoogleMap>
+            ) : (
+             <div className="w-full h-full flex items-center justify-center bg-gray-50">Loading maps...</div>
+            )}
           </div>
         </div>
       </div>
     </div>
   );
+};
+
+const LiveMonitoring = () => {
+  const [apiKey, setApiKey] = useState(null);
+
+  useEffect(() => {
+    getGoogleMapKey().then(key => {
+      if (key) setApiKey(key);
+    });
+  }, []);
+
+  if (!apiKey) {
+    return (
+      <div className="w-full h-[500px] flex items-center justify-center bg-gray-50 rounded-2xl border border-gray-200">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-4 border-[#1F2933] border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-gray-500 font-medium">Securing Map Connectivity...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return <LiveMonitoringContent apiKey={apiKey} />;
 };
 
 export default LiveMonitoring;

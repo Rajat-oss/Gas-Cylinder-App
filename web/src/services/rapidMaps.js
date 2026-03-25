@@ -1,40 +1,44 @@
 import axios from 'axios';
+import api from './api';
 
-const RAPID_API_KEY = import.meta.env.VITE_RAPID_API_KEY;
-if (!RAPID_API_KEY) {
-    throw new Error('VITE_RAPID_API_KEY environment variable is required');
-}
-const RAPID_API_HOST = 'google-api31.p.rapidapi.com';
+let cachedKey = null;
+
+export const getGoogleMapKey = async () => {
+    if (cachedKey) return cachedKey;
+    try {
+        const res = await api.get('/config/maps');
+        cachedKey = res.data.apiKey;
+        return cachedKey;
+    } catch (e) {
+        console.error('Failed to get maps config', e);
+        return null; // fallback
+    }
+};
 
 export const searchLocation = async (query) => {
     try {
-        const response = await axios.post(
-            `https://${RAPID_API_HOST}/map2`,
+        const key = await getGoogleMapKey();
+        const response = await axios.get(
+            `https://maps.googleapis.com/maps/api/geocode/json`,
             {
-                text: query,
-                place: '',
-                street: '',
-                city: '',
-                country: '',
-                state: '',
-                postalcode: '',
-                latitude: '',
-                longitude: '',
-                radius: ''
-            },
-            {
-                headers: {
-                    'x-rapidapi-key': RAPID_API_KEY,
-                    'x-rapidapi-host': RAPID_API_HOST,
-                    'Content-Type': 'application/json'
+                params: {
+                    address: query,
+                    key: key
                 }
             }
         );
 
-        // From our test, results are in response.data.result
-        return response.data.result;
+        if (response.data.status === 'OK' && response.data.results.length > 0) {
+            const results = response.data.results.map(res => ({
+                address: res.formatted_address,
+                latitude: res.geometry.location.lat,
+                longitude: res.geometry.location.lng,
+            }));
+            return results;
+        }
+        return [];
     } catch (error) {
-        console.error('RapidAPI Map Search Error:', error);
+        console.error('Google Maps Search Error:', error);
         throw error;
     }
 };

@@ -63,6 +63,10 @@ app.get('/', (req, res) => {
     res.json({ status: 'ok', message: 'GasFlow Backend API', version: '1.0.0' });
 });
 
+app.get('/api/config/maps', (req, res) => {
+    res.json({ apiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY });
+});
+
 // Health check
 app.get('/health', (req, res) => {
     res.json({ status: 'ok', message: 'GasFlow Backend is running', timestamp: new Date().toISOString() });
