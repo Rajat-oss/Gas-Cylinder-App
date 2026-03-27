@@ -1,17 +1,17 @@
-import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from "@react-google-maps/api";
+import { GoogleMap, InfoWindow, Marker, useJsApiLoader } from "@react-google-maps/api";
 import {
-    MapPin,
-    Navigation,
-    Phone,
-    Search,
-    Target,
-    TrendingUp,
-    Truck,
-    LocateFixed,
+  LocateFixed,
+  MapPin,
+  Navigation,
+  Phone,
+  Search,
+  Target,
+  TrendingUp,
+  Truck,
 } from "lucide-react";
-import { useEffect, useState, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import api from "../services/api";
-import { searchLocation, getGoogleMapKey } from "../services/rapidMaps";
+import { getGoogleMapKey, searchLocation } from "../services/rapidMaps";
 import socketService from "../services/socket";
 
 const containerStyle = {
@@ -72,9 +72,8 @@ const DriverStatusCard = ({ driver, onFocus }) => (
       </div>
       <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
         <div
-          className={`h-full rounded-full transition-all duration-500 ${
-            driver.progress >= 80 ? "bg-emerald-500" : "bg-[#1F2933]"
-          }`}
+          className={`h-full rounded-full transition-all duration-500 ${driver.progress >= 80 ? "bg-emerald-500" : "bg-[#1F2933]"
+            }`}
           style={{ width: `${driver.progress}%` }}
         />
       </div>
@@ -84,13 +83,13 @@ const DriverStatusCard = ({ driver, onFocus }) => (
           <p className="text-[10px] text-gray-500 font-medium">Total</p>
           <p className="text-sm font-semibold text-[#1F2933]">{driver.totalOrders}</p>
         </div>
-        <div className="bg-emerald-50 p-2 rounded-lg text-center">
-          <p className="text-[10px] text-emerald-600 font-medium">Done</p>
-          <p className="text-sm font-semibold text-emerald-600">{driver.doneOrders}</p>
+        <div className="bg-[#E8F5E9] p-2 rounded-lg text-center">
+          <p className="text-[10px] text-[#00C853] font-bold uppercase tracking-wider">Done</p>
+          <p className="text-sm font-bold text-[#00C853]">{driver.doneOrders}</p>
         </div>
-        <div className="bg-amber-50 p-2 rounded-lg text-center">
-          <p className="text-[10px] text-amber-600 font-medium">Left</p>
-          <p className="text-sm font-semibold text-amber-600">{driver.totalOrders - driver.doneOrders}</p>
+        <div className="bg-orange-50 p-2 rounded-lg text-center">
+          <p className="text-[10px] text-orange-500 font-bold uppercase tracking-wider">Left</p>
+          <p className="text-sm font-bold text-orange-500">{driver.totalOrders - driver.doneOrders}</p>
         </div>
       </div>
 
@@ -219,13 +218,13 @@ const LiveMonitoringContent = ({ apiKey }) => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search customer location or area..."
-              className="w-full bg-gray-50 border border-gray-200 focus:border-gray-400 rounded-xl py-2.5 pl-10 pr-24 text-[#1F2933] placeholder-gray-400 outline-none transition-all text-sm"
+              className="w-full bg-white border border-gray-200 focus:border-[#00C853] focus:ring-1 focus:ring-[#00C853] rounded-lg py-2 pl-9 pr-24 text-[#1F2933] placeholder-gray-400 outline-none transition-all text-[13px] font-medium shadow-sm"
             />
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
             <button
               type="submit"
               disabled={searching}
-              className="absolute right-2 top-1/2 -translate-y-1/2 px-4 py-1.5 bg-[#1F2933] hover:bg-gray-700 text-white rounded-lg transition-all text-sm font-medium"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 px-4 py-1 bg-white border border-gray-200 hover:bg-gray-50 text-[#1F2933] rounded-md transition-all text-[12px] font-bold tracking-wide shadow-sm"
             >
               {searching ? "..." : "Search"}
             </button>
@@ -313,7 +312,7 @@ const LiveMonitoringContent = ({ apiKey }) => {
                     </div>
                   </InfoWindow>
                 )}
-                
+
                 {searchResult && (
                   <Marker
                     position={{ lat: searchResult.lat, lng: searchResult.lng }}
@@ -324,7 +323,7 @@ const LiveMonitoringContent = ({ apiKey }) => {
                 )}
               </GoogleMap>
             ) : (
-             <div className="w-full h-full flex items-center justify-center bg-gray-50">Loading maps...</div>
+              <div className="w-full h-full flex items-center justify-center bg-gray-50">Loading maps...</div>
             )}
           </div>
         </div>

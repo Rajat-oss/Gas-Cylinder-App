@@ -53,11 +53,10 @@ const PageLayout = ({
                 </div>
                 {stat.trend !== undefined && (
                   <span
-                    className={`text-xs font-medium px-2 py-1 rounded-lg flex items-center gap-1 ${
-                      stat.trend > 0
+                    className={`text-xs font-medium px-2 py-1 rounded-lg flex items-center gap-1 ${stat.trend > 0
                         ? "bg-emerald-50 text-emerald-600"
                         : "bg-red-50 text-red-600"
-                    }`}
+                      }`}
                   >
                     <ArrowUpRight
                       size={12}

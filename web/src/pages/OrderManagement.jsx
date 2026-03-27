@@ -51,15 +51,15 @@ const OrderManagement = () => {
   const getStatusStyle = (status) => {
     switch (status) {
       case "DELIVERED":
-        return "bg-emerald-50 text-emerald-600 border-emerald-200";
+        return "bg-[#E8F5E9] text-[#00C853] border-transparent font-bold tracking-wide text-[10px]";
       case "OUT_FOR_DELIVERY":
-        return "bg-blue-50 text-blue-600 border-blue-200";
+        return "bg-[#EBF5FF] text-[#3B82F6] border-transparent font-bold tracking-wide text-[10px]";
       case "PENDING":
-        return "bg-amber-50 text-amber-600 border-amber-200";
+        return "bg-orange-50 text-orange-500 border-transparent font-bold tracking-wide text-[10px]";
       case "CANCELLED":
-        return "bg-red-50 text-red-600 border-red-200";
+        return "bg-red-50 text-red-500 border-transparent font-bold tracking-wide text-[10px]";
       default:
-        return "bg-gray-100 text-gray-600 border-gray-200";
+        return "bg-gray-100 text-gray-500 border-transparent font-bold tracking-wide text-[10px]";
     }
   };
 
@@ -102,8 +102,8 @@ const OrderManagement = () => {
         </div>
         <div className="flex gap-3">
           {selectedOrders.length > 0 && (
-            <button className="bg-[#1F2933] hover:bg-gray-700 text-white font-semibold px-5 py-2.5 rounded-xl flex items-center gap-2 transition-all shadow-lg shadow-gray-300/30 text-sm">
-              <UserPlus size={16} />
+            <button className="bg-[#00C853] hover:bg-[#00B248] text-white font-bold px-5 py-2 rounded-lg flex items-center gap-2 transition-all shadow-sm shadow-[#00C853]/20 text-[13px] tracking-wide">
+              <UserPlus size={16} strokeWidth={2.5} />
               <span>Assign {selectedOrders.length} Orders</span>
             </button>
           )}
@@ -131,13 +131,13 @@ const OrderManagement = () => {
                 placeholder="Search orders..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2.5 pl-10 pr-4 text-[#1F2933] text-sm placeholder-gray-400 focus:ring-2 focus:ring-gray-200 focus:border-gray-300 outline-none transition-all"
+                className="w-full bg-white border border-gray-200 rounded-lg py-2 pl-9 pr-4 text-[#1F2933] placeholder-gray-400 focus:ring-1 focus:ring-[#00C853] focus:border-[#00C853] outline-none transition-all text-[13px] font-medium shadow-sm"
               />
             </div>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="bg-white border border-gray-200 rounded-xl py-2.5 px-4 text-gray-600 text-sm font-medium focus:ring-2 focus:ring-gray-200 focus:border-gray-300 outline-none transition-all"
+              className="bg-white border border-gray-200 rounded-lg py-2 px-3 text-[#1F2933] text-[13px] font-semibold focus:ring-1 focus:ring-[#00C853] focus:border-[#00C853] outline-none transition-all shadow-sm"
             >
               <option value="">Status: All</option>
               <option value="PENDING">Pending</option>
@@ -145,8 +145,8 @@ const OrderManagement = () => {
               <option value="DELIVERED">Delivered</option>
             </select>
           </div>
-          <button className="flex items-center gap-2 bg-white border border-gray-200 text-gray-600 px-4 py-2.5 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-colors text-sm font-medium">
-            <Filter size={16} />
+          <button className="flex items-center gap-1.5 bg-white border border-gray-200 text-[#1F2933] px-4 py-2 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors text-[13px] font-bold tracking-wide shadow-sm">
+            <Filter size={14} strokeWidth={2.5} />
             <span>More Filters</span>
           </button>
         </div>
@@ -155,11 +155,11 @@ const OrderManagement = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50/50 text-gray-500 text-xs font-semibold uppercase tracking-wide">
+              <tr className="border-b border-gray-200 bg-white text-gray-400 text-[10px] font-bold uppercase tracking-wider">
                 <th className="px-5 py-4 w-12">
                   <input
                     type="checkbox"
-                    className="w-4 h-4 rounded border-gray-300 bg-white text-[#1F2933] focus:ring-gray-300"
+                    className="w-4 h-4 rounded border-gray-300 bg-white text-[#00C853] focus:ring-[#00C853]"
                     onChange={(e) => {
                       if (e.target.checked)
                         setSelectedOrders(orders.map((o) => o.id));
@@ -188,7 +188,7 @@ const OrderManagement = () => {
                       type="checkbox"
                       checked={selectedOrders.includes(order.id)}
                       onChange={() => toggleOrderSelection(order.id)}
-                      className="w-4 h-4 rounded border-gray-300 bg-white text-[#1F2933] focus:ring-gray-300"
+                      className="w-4 h-4 rounded border-gray-300 bg-white text-[#00C853] focus:ring-[#00C853] transition-colors"
                     />
                   </td>
                   <td className="px-5 py-4">
@@ -265,7 +265,7 @@ const OrderManagement = () => {
                   </td>
                   <td className="px-5 py-4">
                     <span
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${getStatusStyle(order.status)}`}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border ${getStatusStyle(order.status)}`}
                     >
                       {getStatusIcon(order.status)}
                       {order.status.replace(/_/g, " ")}
@@ -291,9 +291,9 @@ const OrderManagement = () => {
                             openDropdown === order.id ? null : order.id,
                           )
                         }
-                        className="p-2 text-gray-400 hover:text-[#1F2933] hover:bg-gray-100 rounded-lg transition-all"
+                        className="p-1.5 text-gray-400 hover:text-[#1F2933] hover:bg-gray-100 rounded-md transition-all"
                       >
-                        <MoreHorizontal size={18} />
+                        <MoreHorizontal size={18} strokeWidth={2} />
                       </button>
                       {openDropdown === order.id && (
                         <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg py-1 z-10 min-w-[140px] overflow-hidden">

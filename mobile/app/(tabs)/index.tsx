@@ -4,12 +4,14 @@ import React, { useEffect, useState } from 'react';
 import {
     RefreshControl,
     ScrollView,
+    StatusBar,
     StyleSheet,
+    Switch,
     Text,
     TouchableOpacity,
     View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppMap } from '../../components/AppMap';
 import { CustomButton } from '../../components/CustomButton';
 import { Colors } from '../../constants/Colors';
@@ -25,15 +27,16 @@ export default function DashboardScreen() {
     const { location } = useLocation();
     const [refreshing, setRefreshing] = useState(false);
     const [deliveries, setDeliveries] = useState<any[]>([]);
+    const [isOnline, setIsOnline] = useState(true);
     const [activeDestination, setActiveDestination] = useState<{ latitude: number, longitude: number } | null>(null);
     const [routeCoords, setRouteCoords] = useState<any[]>([]);
     const [socketConnected, setSocketConnected] = useState(false);
     const mapRef = React.useRef<any>(null);
+    const insets = useSafeAreaInsets();
 
     const fetchData = React.useCallback(async () => {
         try {
             if (!user) {
-                // Clear data when user is logged out
                 setDeliveries([]);
                 setActiveDestination(null);
                 return;
@@ -53,7 +56,6 @@ export default function DashboardScreen() {
                 setActiveDestination(null);
             }
         } catch (error) {
-            // Silently handle errors when user is logged out
             if (!user) {
                 console.log('Skipping dashboard error - user logged out');
                 return;
@@ -72,7 +74,6 @@ export default function DashboardScreen() {
 
     useEffect(() => {
         if (!user) {
-            // Don't setup socket or fetch data if user is not logged in
             setSocketConnected(false);
             return;
         }
@@ -103,7 +104,7 @@ export default function DashboardScreen() {
     }, [user?.id, fetchData]);
 
     const onRefresh = React.useCallback(async () => {
-        if (!user) return; // Don't refresh if user is not logged in
+        if (!user) return;
         setRefreshing(true);
         await fetchData();
         setRefreshing(false);
@@ -117,53 +118,85 @@ export default function DashboardScreen() {
         upi: deliveries.reduce((total, d) => total + (d.transactions?.filter((t: any) => t.paymentType === 'UPI').reduce((sum: number, t: any) => sum + t.amount, 0) || 0), 0),
     };
 
+    const totalEarnings = stats.cash + stats.upi;
+
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={styles.container} edges={['bottom']}>
+            <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
             <ScrollView
                 contentContainerStyle={styles.scrollContent}
                 refreshControl={
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.primary]} />
                 }
+                showsVerticalScrollIndicator={false}
             >
-                <View style={styles.header}>
-                    <View style={styles.headerLeft}>
+                {/* Dark Hero Header */}
+                <View style={[styles.heroSection, { paddingTop: insets.top + 16 }]}>
+                    {/* Top Row */}
+                    <View style={styles.topRow}>
+                        {/* Left: Avatar only */}
                         <View style={styles.avatarContainer}>
-                            <Ionicons name="person" size={28} color="#FFFFFF" />
+                            <Ionicons name="person" size={22} color="#FFFFFF" />
                         </View>
-                        <View>
-                            <Text style={styles.greeting}>Hello, {user?.name || 'User'}!</Text>
-                            <View style={styles.statusContainer}>
-                                <View style={[styles.statusDot, { backgroundColor: socketConnected ? Colors.success : (location ? Colors.info : Colors.danger) }]} />
-                                <Text style={styles.statusText}>
-                                    {socketConnected ? 'Real-time Linked' : (location ? 'Tracking Active' : 'Offline')}
-                                </Text>
+
+                        <View style={styles.greetingBlock}>
+                            <Text style={styles.greeting}>Hello, {user?.name || 'Driver'} 👋</Text>
+                        </View>
+
+                        {/* Right: Online Toggle */}
+                        <View style={styles.onlineToggleWrap}>
+                            <View style={[styles.onlineDot, { backgroundColor: isOnline ? '#007A3D' : '#CC0000' }]} />
+                            <Text style={styles.onlineLabel}>{isOnline ? 'Online' : 'Offline'}</Text>
+                            <Switch
+                                value={isOnline}
+                                onValueChange={setIsOnline}
+                                trackColor={{ false: '#CC0000', true: '#007A3D' }}
+                                thumbColor={'#FFFFFF'}
+                                style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
+                            />
+                        </View>
+                    </View>
+
+                    {/* Status Chips */}
+                    <View style={styles.chipRow}>
+                        <View style={[styles.statusChip, { borderColor: socketConnected ? '#10B981' : (location ? '#10B981' : '#EF4444') }]}>
+                            <View style={[styles.chipDot, { backgroundColor: socketConnected ? '#10B981' : (location ? '#10B981' : '#EF4444') }]} />
+                            <Text style={styles.chipText}>
+                                {socketConnected ? 'Real-time Linked' : (location ? 'Tracking Active' : 'Offline')}
+                            </Text>
+                        </View>
+                        <View style={styles.dateChip}>
+                            <Ionicons name="calendar-outline" size={12} color="#94A3B8" />
+                            <Text style={styles.dateText}>
+                                {new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}
+                            </Text>
+                        </View>
+                    </View>
+
+                    {/* Earnings Card */}
+                    <View style={styles.earningsCard}>
+                        <View style={styles.earningsLeft}>
+                            <Text style={styles.earningsLabel}>TODAY'S EARNINGS</Text>
+                            <Text style={styles.earningsValue}>₹{totalEarnings.toLocaleString('en-IN')}</Text>
+                            <Text style={styles.earningsSubtext}>
+                                {stats.delivered} of {stats.assigned} deliveries done
+                            </Text>
+                        </View>
+                        <View style={styles.earningsRight}>
+                            <View style={styles.paymentChip}>
+                                <Text style={styles.paymentChipLabel}>Cash</Text>
+                                <Text style={styles.paymentChipValue}>₹{stats.cash.toLocaleString('en-IN')}</Text>
+                            </View>
+                            <View style={[styles.paymentChip, styles.upiChipBg]}>
+                                <Text style={styles.paymentChipLabel}>UPI</Text>
+                                <Text style={styles.paymentChipValue}>₹{stats.upi.toLocaleString('en-IN')}</Text>
                             </View>
                         </View>
                     </View>
-                    <TouchableOpacity
-                        style={styles.notificationBtn}
-                        onPress={() => router.push('/notifications')}
-                    >
-                        <Ionicons name="notifications" size={24} color={Colors.primary} />
-                        {deliveries.some(d => d.status === 'PENDING') && <View style={styles.badge} />}
-                    </TouchableOpacity>
                 </View>
 
-                {/* Welcome Banner */}
-                <View style={styles.welcomeBanner}>
-                    <View style={styles.bannerContent}>
-                        <View>
-                            <Text style={styles.bannerTitle}>Gas Delivery Partner</Text>
-                            <Text style={styles.bannerSubtitle}>Track your deliveries in real-time</Text>
-                        </View>
-                        <View style={styles.bannerIcon}>
-                            <Ionicons name="flame" size={36} color="#FFFFFF" />
-                        </View>
-                    </View>
-                </View>
-
-                {/* Live Fleet Tracking Section */}
-                <View style={styles.trackingContainer}>
+                {/* Map Section */}
+                <View style={styles.mapSection}>
                     <View style={styles.mapBox}>
                         {location && (
                             <View style={styles.liveBadge}>
@@ -173,7 +206,7 @@ export default function DashboardScreen() {
                         )}
                         {location && (
                             <View style={styles.gpsChip}>
-                                <Ionicons name="navigate" size={14} color={Colors.success} />
+                                <Ionicons name="navigate" size={12} color={Colors.success} />
                                 <Text style={styles.gpsText}>GPS Active</Text>
                             </View>
                         )}
@@ -186,7 +219,7 @@ export default function DashboardScreen() {
                         {!location && (
                             <View style={styles.mapOverlay}>
                                 <View style={styles.overlayCard}>
-                                    <Ionicons name="location-outline" size={48} color={Colors.primary} />
+                                    <Ionicons name="location-outline" size={44} color={Colors.primary} />
                                     <Text style={styles.overlayTitle}>Enable GPS</Text>
                                     <Text style={styles.overlayText}>Turn on location for live tracking</Text>
                                 </View>
@@ -203,62 +236,76 @@ export default function DashboardScreen() {
                                     });
                                 }}
                             >
-                                <Ionicons name="locate" size={22} color="#FFFFFF" />
+                                <Ionicons name="locate" size={20} color="#FFFFFF" />
                             </TouchableOpacity>
                         )}
                     </View>
                 </View>
 
-                <View style={styles.summaryContainer}>
-                    <Text style={styles.sectionTitle}>Today's Overview</Text>
+                {/* Today's Overview */}
+                <View style={styles.overviewSection}>
+                    {/* Section Header */}
+                    <View style={styles.sectionHeaderRow}>
+                        <View style={styles.sectionAccentBar} />
+                        <Text style={styles.sectionTitle}>Today's Overview</Text>
+                    </View>
+
+                    {/* Stats Grid - 2x2 white cards */}
                     <View style={styles.statsGrid}>
-                        <View style={[styles.statCard, styles.statCardBlue]}>
-                            <View style={styles.statIconContainer}>
-                                <Ionicons name="clipboard" size={20} color="#FFFFFF" />
+                        <View style={styles.statCard}>
+                            <View style={[styles.statIconBox, { backgroundColor: '#EBF0F9' }]}>
+                                <Ionicons name="clipboard" size={20} color="#003087" />
                             </View>
                             <Text style={styles.statNumber}>{stats.assigned}</Text>
                             <Text style={styles.statLabel}>Assigned</Text>
+                            <View style={[styles.statBottomBar, { backgroundColor: '#003087' }]} />
                         </View>
-                        <View style={[styles.statCard, styles.statCardGreen]}>
-                            <View style={styles.statIconContainer}>
-                                <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
+                        <View style={styles.statCard}>
+                            <View style={[styles.statIconBox, { backgroundColor: '#E6F4EC' }]}>
+                                <Ionicons name="checkmark-circle" size={20} color="#007A3D" />
                             </View>
                             <Text style={styles.statNumber}>{stats.delivered}</Text>
                             <Text style={styles.statLabel}>Delivered</Text>
+                            <View style={[styles.statBottomBar, { backgroundColor: '#007A3D' }]} />
                         </View>
-                        <View style={[styles.statCard, styles.statCardOrange]}>
-                            <View style={styles.statIconContainer}>
-                                <Ionicons name="time" size={20} color="#FFFFFF" />
+                        <View style={styles.statCard}>
+                            <View style={[styles.statIconBox, { backgroundColor: '#FDEAEA' }]}>
+                                <Ionicons name="time" size={20} color="#CC0000" />
                             </View>
                             <Text style={styles.statNumber}>{stats.pending}</Text>
                             <Text style={styles.statLabel}>Pending</Text>
+                            <View style={[styles.statBottomBar, { backgroundColor: '#CC0000' }]} />
                         </View>
-                        <View style={[styles.statCard, styles.statCardPurple]}>
-                            <View style={styles.statIconContainer}>
-                                <Ionicons name="wallet" size={20} color="#FFFFFF" />
+                        <View style={styles.statCard}>
+                            <View style={[styles.statIconBox, { backgroundColor: '#FEF3E2' }]}>
+                                <Ionicons name="wallet" size={20} color="#F5A623" />
                             </View>
-                            <Text style={styles.statNumber}>₹{stats.cash + stats.upi}</Text>
-                            <Text style={styles.statLabel}>Total Earnings</Text>
+                            <Text style={styles.statNumber}>₹{totalEarnings}</Text>
+                            <Text style={styles.statLabel}>Earned</Text>
+                            <View style={[styles.statBottomBar, { backgroundColor: '#F5A623' }]} />
                         </View>
                     </View>
 
+                    {/* Payment Split */}
                     <View style={styles.paymentSplit}>
-                        <View style={[styles.paymentCard, styles.cashCard]}>
-                            <View style={styles.paymentIconContainer}>
-                                <Ionicons name="cash" size={24} color="#FFFFFF" />
+                        <View style={styles.paymentCard}>
+                            <View style={[styles.paymentIconWrap, { backgroundColor: '#E6F4EC' }]}>
+                                <Ionicons name="cash" size={22} color="#007A3D" />
                             </View>
-                            <View style={styles.paymentContent}>
-                                <Text style={styles.paymentLabel}>Cash Collected</Text>
-                                <Text style={styles.paymentValue}>₹{stats.cash}</Text>
+                            <View style={styles.paymentCardText}>
+                                <Text style={styles.paymentCardTitle} numberOfLines={1}>Cash</Text>
+                                <Text style={styles.paymentCardSub} numberOfLines={1}>Collected</Text>
+                                <Text style={[styles.paymentCardValue, { color: '#007A3D' }]}>₹{stats.cash}</Text>
                             </View>
                         </View>
-                        <View style={[styles.paymentCard, styles.upiCard]}>
-                            <View style={styles.paymentIconContainer}>
-                                <Ionicons name="card" size={24} color="#FFFFFF" />
+                        <View style={styles.paymentCard}>
+                            <View style={[styles.paymentIconWrap, { backgroundColor: '#FDEAEA' }]}>
+                                <Ionicons name="card" size={22} color="#CC0000" />
                             </View>
-                            <View style={styles.paymentContent}>
-                                <Text style={styles.paymentLabel}>UPI Collected</Text>
-                                <Text style={styles.paymentValue}>₹{stats.upi}</Text>
+                            <View style={styles.paymentCardText}>
+                                <Text style={styles.paymentCardTitle} numberOfLines={1}>UPI</Text>
+                                <Text style={styles.paymentCardSub} numberOfLines={1}>Collected</Text>
+                                <Text style={[styles.paymentCardValue, { color: '#CC0000' }]}>₹{stats.upi}</Text>
                             </View>
                         </View>
                     </View>
@@ -279,170 +326,246 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F5F5F7',
+        backgroundColor: '#F1F5F9',
     },
     scrollContent: {
-        padding: 24,
-        paddingBottom: 40,
+        paddingBottom: 100,
+        backgroundColor: '#F1F5F9',
     },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 20,
+
+    // Hero Section
+    heroSection: {
+        backgroundColor: '#003087',
+        paddingHorizontal: 20,
+        paddingBottom: 32,
+        borderBottomLeftRadius: 32,
+        borderBottomRightRadius: 32,
+        marginBottom: 0,
     },
-    headerLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 14,
-    },
-    avatarContainer: {
-        width: 56,
-        height: 56,
-        borderRadius: 28,
-        backgroundColor: Colors.primary,
-        justifyContent: 'center',
-        alignItems: 'center',
-        shadowColor: Colors.primary,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 5,
-    },
-    greeting: {
-        fontSize: 24,
-        fontWeight: '800',
-        color: Colors.text,
-        letterSpacing: -0.8,
-    },
-    statusContainer: {
+    topRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
-        marginTop: 4,
+        marginBottom: 16,
+        gap: 10,
     },
-    statusDot: {
-        width: 8,
-        height: 8,
+    topLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    onlineToggleWrap: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255,255,255,0.12)',
+        borderRadius: 24,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        gap: 4,
+    },
+    onlineDot: {
+        width: 7,
+        height: 7,
         borderRadius: 4,
     },
-    statusText: {
-        fontSize: 13,
-        color: Colors.textLight,
-        fontWeight: '600',
+    onlineLabel: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#FFFFFF',
+        letterSpacing: 0.2,
     },
-    notificationBtn: {
-        width: 52,
-        height: 52,
+    avatarContainer: {
+        width: 48,
+        height: 48,
         borderRadius: 16,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: '#F97316',
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: Colors.primary,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 12,
-        elevation: 4,
     },
-    badge: {
-        position: 'absolute',
-        top: 10,
-        right: 10,
-        width: 12,
-        height: 12,
-        borderRadius: 6,
-        backgroundColor: Colors.danger,
-        borderWidth: 2,
-        borderColor: '#FFFFFF',
+    greetingBlock: {
+        flex: 1,
     },
-    welcomeBanner: {
-        backgroundColor: Colors.primary,
-        borderRadius: 24,
-        padding: 20,
-        marginBottom: 24,
-        shadowColor: Colors.primary,
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.3,
-        shadowRadius: 16,
-        elevation: 6,
+    appLabel: {
+        fontSize: 10,
+        fontWeight: '800',
+        color: '#64748B',
+        letterSpacing: 2,
+        marginBottom: 2,
     },
-    bannerContent: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    bannerTitle: {
+    greeting: {
         fontSize: 20,
         fontWeight: '800',
         color: '#FFFFFF',
-        marginBottom: 4,
         letterSpacing: -0.5,
     },
-    bannerSubtitle: {
-        fontSize: 14,
-        color: 'rgba(255,255,255,0.9)',
-        fontWeight: '500',
-    },
-    bannerIcon: {
-        width: 64,
-        height: 64,
-        borderRadius: 32,
-        backgroundColor: 'rgba(255,255,255,0.2)',
+    notificationBtn: {
+        width: 44,
+        height: 44,
+        borderRadius: 14,
+        backgroundColor: 'rgba(255,255,255,0.1)',
         justifyContent: 'center',
         alignItems: 'center',
     },
-    trackingContainer: {
-        marginBottom: 24,
+    badge: {
+        position: 'absolute',
+        top: 8,
+        right: 8,
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        backgroundColor: '#EF4444',
+        borderWidth: 2,
+        borderColor: '#172554',
+    },
+
+    // Status chips
+    chipRow: {
+        flexDirection: 'row',
+        gap: 10,
+        marginBottom: 20,
+    },
+    statusChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        borderWidth: 1,
+        borderRadius: 20,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        backgroundColor: 'rgba(255,255,255,0.06)',
+    },
+    chipDot: {
+        width: 7,
+        height: 7,
+        borderRadius: 3.5,
+    },
+    chipText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#E2E8F0',
+    },
+    dateChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 5,
+        borderRadius: 20,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        backgroundColor: 'rgba(255,255,255,0.06)',
+    },
+    dateText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#94A3B8',
+    },
+
+    // Earnings Card
+    earningsCard: {
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        borderRadius: 20,
+        padding: 20,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    earningsLeft: {
+        flex: 1,
+    },
+    earningsLabel: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: '#64748B',
+        letterSpacing: 1.5,
+        marginBottom: 6,
+    },
+    earningsValue: {
+        fontSize: 36,
+        fontWeight: '800',
+        color: '#F59E0B',
+        letterSpacing: -1,
+        marginBottom: 4,
+    },
+    earningsSubtext: {
+        fontSize: 13,
+        fontWeight: '500',
+        color: '#64748B',
+    },
+    earningsRight: {
+        gap: 8,
+    },
+    paymentChip: {
+        backgroundColor: '#374151',
+        borderRadius: 12,
+        paddingHorizontal: 14,
+        paddingVertical: 8,
+        alignItems: 'center',
+        minWidth: 80,
+    },
+    upiChipBg: {
+        backgroundColor: '#1E3A5F',
+    },
+    paymentChipLabel: {
+        fontSize: 10,
+        fontWeight: '600',
+        color: '#9CA3AF',
+        marginBottom: 2,
+    },
+    paymentChipValue: {
+        fontSize: 14,
+        fontWeight: '800',
+        color: '#FFFFFF',
+    },
+
+    // Map Section
+    mapSection: {
+        paddingHorizontal: 20,
+        marginTop: 0,
     },
     mapBox: {
-        height: 240,
+        height: 220,
         backgroundColor: Colors.surface,
         borderRadius: 24,
         overflow: 'hidden',
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 8 },
+        shadowOffset: { width: 0, height: 6 },
         shadowOpacity: 0.12,
         shadowRadius: 16,
         elevation: 6,
+        marginTop: 20,
+        marginBottom: 24,
     },
     liveBadge: {
         position: 'absolute',
-        top: 16,
-        left: 16,
-        backgroundColor: Colors.danger,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderRadius: 12,
+        top: 14,
+        left: 14,
+        backgroundColor: '#EF4444',
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 10,
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
+        gap: 5,
         zIndex: 10,
-        shadowColor: Colors.danger,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.3,
-        shadowRadius: 4,
-        elevation: 3,
     },
     pulseDot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
+        width: 7,
+        height: 7,
+        borderRadius: 3.5,
         backgroundColor: '#FFFFFF',
     },
     liveText: {
-        fontSize: 11,
-        fontWeight: '700',
+        fontSize: 10,
+        fontWeight: '800',
         color: '#FFFFFF',
         letterSpacing: 0.5,
     },
     gpsChip: {
         position: 'absolute',
-        top: 16,
-        right: 16,
+        top: 14,
+        right: 14,
         backgroundColor: '#FFFFFF',
         paddingHorizontal: 10,
         paddingVertical: 6,
-        borderRadius: 12,
+        borderRadius: 10,
         flexDirection: 'row',
         alignItems: 'center',
         gap: 4,
@@ -454,46 +577,40 @@ const styles = StyleSheet.create({
         elevation: 3,
     },
     gpsText: {
-        fontSize: 11,
-        fontWeight: '600',
+        fontSize: 10,
+        fontWeight: '700',
         color: Colors.success,
     },
     mapOverlay: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        backgroundColor: 'rgba(255,255,255,0.95)',
         justifyContent: 'center',
         alignItems: 'center',
     },
     overlayCard: {
         alignItems: 'center',
-        backgroundColor: Colors.surface,
-        padding: 32,
-        borderRadius: 24,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
-        elevation: 4,
+        padding: 28,
+        borderRadius: 20,
     },
     overlayTitle: {
-        fontSize: 18,
+        fontSize: 17,
         fontWeight: '700',
         color: Colors.text,
-        marginTop: 12,
+        marginTop: 10,
     },
     overlayText: {
-        fontSize: 14,
+        fontSize: 13,
         color: Colors.textLight,
         marginTop: 4,
     },
     recenterBtn: {
         position: 'absolute',
-        bottom: 16,
-        right: 16,
+        bottom: 14,
+        right: 14,
         backgroundColor: Colors.primary,
-        width: 48,
-        height: 48,
-        borderRadius: 24,
+        width: 44,
+        height: 44,
+        borderRadius: 22,
         justifyContent: 'center',
         alignItems: 'center',
         shadowColor: Colors.primary,
@@ -502,119 +619,158 @@ const styles = StyleSheet.create({
         shadowRadius: 8,
         elevation: 5,
     },
-    summaryContainer: {
-        marginBottom: 32,
+
+    // Overview Section
+    overviewSection: {
+        backgroundColor: '#FFFFFF',
+        paddingHorizontal: 20,
+        paddingTop: 20,
+        paddingBottom: 20,
+    },
+    sectionHeaderRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        marginBottom: 16,
+    },
+    sectionAccentBar: {
+        width: 4,
+        height: 22,
+        borderRadius: 2,
+        backgroundColor: '#CC0000',
     },
     sectionTitle: {
-        fontSize: 22,
+        fontSize: 18,
         fontWeight: '800',
-        color: Colors.text,
-        marginBottom: 18,
-        letterSpacing: -0.8,
+        color: '#0F172A',
+        letterSpacing: -0.3,
     },
+
+    // Stat Cards — white with colored icon box + bottom accent bar
     statsGrid: {
         flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'space-between',
-        marginBottom: 20,
+        gap: 10,
+        marginBottom: 16,
     },
     statCard: {
-        width: '48%',
-        borderRadius: 14,
+        flex: 1,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
         padding: 12,
-        marginBottom: 10,
         alignItems: 'center',
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.12,
-        shadowRadius: 8,
-        elevation: 4,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.07,
+        shadowRadius: 6,
+        elevation: 3,
+        overflow: 'hidden',
     },
-    statCardBlue: {
-        backgroundColor: Colors.primary,
-    },
-    statCardGreen: {
-        backgroundColor: Colors.success,
-    },
-    statCardOrange: {
-        backgroundColor: Colors.warning,
-    },
-    statCardPurple: {
-        backgroundColor: Colors.accent,
-    },
-    statIconContainer: {
-        width: 38,
-        height: 38,
-        borderRadius: 19,
-        backgroundColor: 'rgba(255,255,255,0.25)',
+    statIconBox: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 6,
+        marginBottom: 8,
     },
     statNumber: {
-        fontSize: 20,
-        fontWeight: '800',
-        color: '#FFFFFF',
-        letterSpacing: -0.8,
+        fontSize: 18,
+        fontWeight: '900',
+        color: '#0F172A',
+        letterSpacing: -0.5,
         marginBottom: 2,
     },
     statLabel: {
-        fontSize: 10,
-        color: 'rgba(255,255,255,0.9)',
-        fontWeight: '600',
+        fontSize: 9,
+        color: '#94A3B8',
+        fontWeight: '700',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+        marginBottom: 8,
     },
+    statBottomBar: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        height: 3,
+    },
+
+    // Payment Split — white cards
     paymentSplit: {
         flexDirection: 'row',
-        gap: 14,
+        gap: 12,
         marginBottom: 20,
     },
     paymentCard: {
         flex: 1,
+        backgroundColor: '#FFFFFF',
         padding: 14,
-        borderRadius: 14,
+        borderRadius: 16,
         flexDirection: 'row',
         alignItems: 'center',
         gap: 10,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.12,
-        shadowRadius: 8,
-        elevation: 4,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.07,
+        shadowRadius: 6,
+        elevation: 3,
     },
-    cashCard: {
-        backgroundColor: Colors.success,
-    },
-    upiCard: {
-        backgroundColor: Colors.success,
-    },
-    paymentIconContainer: {
-        width: 40,
-        height: 40,
-        borderRadius: 10,
-        backgroundColor: 'rgba(255,255,255,0.2)',
+    paymentIconWrap: {
+        width: 42,
+        height: 42,
+        borderRadius: 12,
         justifyContent: 'center',
         alignItems: 'center',
     },
-    paymentContent: {
+    paymentCardText: {
         flex: 1,
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+        justifyContent: 'center',
     },
-    paymentLabel: {
+    paymentCardLabel: {
         fontSize: 10,
-        color: 'rgba(255,255,255,0.9)',
-        marginBottom: 2,
-        fontWeight: '600',
-    },
-    paymentValue: {
-        fontSize: 18,
+        color: '#94A3B8',
         fontWeight: '700',
-        color: '#FFFFFF',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
     },
+    paymentCardTitle: {
+        fontSize: 15,
+        fontWeight: '800',
+        color: '#0F172A',
+        letterSpacing: -0.2,
+        lineHeight: 20,
+    },
+    paymentCardSub: {
+        fontSize: 10,
+        fontWeight: '600',
+        color: '#94A3B8',
+        letterSpacing: 0.5,
+        textTransform: 'uppercase',
+        lineHeight: 14,
+        marginBottom: 4,
+    },
+    paymentCardValue: {
+        fontSize: 16,
+        fontWeight: '900',
+        lineHeight: 20,
+    },
+    paymentCardBadge: {
+        width: 28,
+        height: 28,
+        borderRadius: 8,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+
     mainActionBtn: {
-        shadowColor: Colors.primary,
+        backgroundColor: '#CC0000',
+        shadowColor: '#CC0000',
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.3,
         shadowRadius: 16,
         elevation: 8,
-        marginTop: 4,
     },
 });

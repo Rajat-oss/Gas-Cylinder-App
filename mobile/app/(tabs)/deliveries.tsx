@@ -7,12 +7,13 @@ import {
     FlatList,
     RefreshControl,
     ScrollView,
+    StatusBar,
     StyleSheet,
     Text,
     TouchableOpacity,
     View
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DeliveryCard } from '../../components/DeliveryCard';
 import { Colors } from '../../constants/Colors';
 import { useAuth } from '../../context/AuthContext';
@@ -26,6 +27,7 @@ export default function DeliveriesScreen() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [selectedFilter, setSelectedFilter] = useState('All');
+    const insets = useSafeAreaInsets();
 
     const mapDeliveryData = (data: Delivery[]) => {
         return data.map(d => ({
@@ -50,24 +52,22 @@ export default function DeliveriesScreen() {
             }
             setLoading(true);
             const data = await deliveryService.getDeliveries();
-            // Filter by assigned staff if it's a driver
             const myDeliveries = data.filter(d => d.assignedStaffId === user?.id);
             setDeliveries(mapDeliveryData(myDeliveries));
         } catch (error: any) {
-            // Silently handle errors when user is logged out
             if (!user) {
                 console.log('Skipping error alert - user logged out');
                 return;
             }
             console.error('Fetch deliveries error:', error);
             let errorMessage = 'Failed to load deliveries';
-            
+
             if (error.response?.status === 401) {
                 errorMessage = 'Session expired. Please login again.';
             } else if (!error.response) {
                 errorMessage = 'Network error. Please check your connection.';
             }
-            
+
             Alert.alert('Error', errorMessage);
         } finally {
             setLoading(false);
@@ -151,39 +151,89 @@ export default function DeliveriesScreen() {
 
     const renderEmpty = () => (
         <View style={styles.emptyContainer}>
-            <Ionicons name="document-text-outline" size={80} color={Colors.border} />
-            <Text style={styles.emptyTitle}>No Deliveries Assigned</Text>
-            <Text style={styles.emptySubtitle}>You{"'"}re all caught up for today!</Text>
+            <View style={styles.emptyIconWrap}>
+                <Ionicons name="cube-outline" size={44} color="#94A3B8" />
+            </View>
+            <Text style={styles.emptyTitle}>No Deliveries Found</Text>
+            <Text style={styles.emptySubtitle}>You're all caught up for today!</Text>
         </View>
     );
 
-    // Filter deliveries based on selected filter
     const filteredDeliveries = deliveries.filter(delivery => {
         if (selectedFilter === 'All') return true;
         return delivery.deliveryStatus === selectedFilter;
     });
 
+    const filters = ['All', 'Assigned', 'Out for Delivery', 'Delivered', 'Cancelled'];
+
+    // Count per filter
+    const filterCounts: Record<string, number> = {
+        'All': deliveries.length,
+        'Assigned': deliveries.filter(d => d.deliveryStatus === 'Assigned').length,
+        'Out for Delivery': deliveries.filter(d => d.deliveryStatus === 'Out for Delivery').length,
+        'Delivered': deliveries.filter(d => d.deliveryStatus === 'Delivered').length,
+        'Cancelled': deliveries.filter(d => d.deliveryStatus === 'Cancelled').length,
+    };
+
     if (loading) {
         return (
-            <View style={styles.loaderContainer}>
-                <ActivityIndicator size="large" color={Colors.primary} />
-            </View>
+            <SafeAreaView style={styles.container} edges={['bottom']}>
+                <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+                <View style={styles.loaderContainer}>
+                    <ActivityIndicator size="large" color={Colors.primary} />
+                    <Text style={styles.loadingText}>Loading deliveries...</Text>
+                </View>
+            </SafeAreaView>
         );
     }
 
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={styles.container} edges={['bottom']}>
+            <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+
+            {/* Premium Header */}
+            <View style={[styles.pageHeader, { paddingTop: insets.top + 14 }]}>
+                <Text style={styles.pageHeaderTitle}>Manage Deliveries</Text>
+            </View>
+
+
+            {/* Filter Chips */}
             <View style={styles.filterContainer}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
-                    {['All', 'Assigned', 'Out for Delivery', 'Delivered', 'Cancelled'].map((filter) => (
-                        <TouchableOpacity 
-                            key={filter} 
-                            style={[styles.filterChip, filter === selectedFilter && styles.activeFilterChip]}
-                            onPress={() => setSelectedFilter(filter)}
-                        >
-                            <Text style={[styles.filterText, filter === selectedFilter && styles.activeFilterText]}>{filter}</Text>
-                        </TouchableOpacity>
-                    ))}
+                    {filters.map((filter) => {
+                        const isActive = filter === selectedFilter;
+                        const iconMap: Record<string, any> = {
+                            'All': 'layers',
+                            'Assigned': 'clipboard',
+                            'Out for Delivery': 'bicycle',
+                            'Delivered': 'checkmark-circle',
+                            'Cancelled': 'close-circle',
+                        };
+                        return (
+                            <TouchableOpacity
+                                key={filter}
+                                style={[styles.filterChip, isActive && styles.activeFilterChip]}
+                                onPress={() => setSelectedFilter(filter)}
+                                activeOpacity={0.85}
+                            >
+                                <Ionicons
+                                    name={isActive ? iconMap[filter] : `${iconMap[filter]}-outline`}
+                                    size={13}
+                                    color={isActive ? '#F59E0B' : '#94A3B8'}
+                                />
+                                <Text style={[styles.filterText, isActive && styles.activeFilterText]}>
+                                    {filter}
+                                </Text>
+                                {filterCounts[filter] > 0 && (
+                                    <View style={[styles.filterBadge, isActive && styles.activeFilterBadge]}>
+                                        <Text style={[styles.filterBadgeText, isActive && styles.activeFilterBadgeText]}>
+                                            {filterCounts[filter]}
+                                        </Text>
+                                    </View>
+                                )}
+                            </TouchableOpacity>
+                        );
+                    })}
                 </ScrollView>
             </View>
 
@@ -212,72 +262,221 @@ export default function DeliveriesScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F8FAFC',
+        backgroundColor: '#F1F5F9',
     },
     loaderContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
+        gap: 12,
     },
-    filterContainer: {
+    loadingText: {
+        fontSize: 14,
+        color: Colors.textLight,
+        fontWeight: '600',
+    },
+
+    // Page Header
+    pageHeader: {
+        backgroundColor: '#003087',
+        paddingHorizontal: 20,
+        paddingBottom: 20,
+        borderBottomLeftRadius: 28,
+        borderBottomRightRadius: 28,
+    },
+    pageHeaderEyebrow: {
+        fontSize: 10,
+        fontWeight: '800',
+        color: 'rgba(255,255,255,0.6)',
+        letterSpacing: 2,
+        marginBottom: 4,
+    },
+    pageHeaderTitle: {
+        fontSize: 30,
+        fontWeight: '800',
+        color: '#FFFFFF',
+        letterSpacing: -0.8,
+    },
+    contentCard: {
+        flex: 1,
+        backgroundColor: '#F1F5F9',
+        borderTopLeftRadius: 28,
+        borderTopRightRadius: 28,
+        overflow: 'hidden',
+        paddingTop: 14,
+    },
+
+    // Header (kept for loader state)
+    header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        paddingTop: 12,
+        paddingBottom: 8,
+        backgroundColor: '#F1F5F9',
+    },
+    headerEyebrow: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: Colors.textLight,
+        letterSpacing: 2,
+        marginBottom: 2,
+    },
+    headerTitle: {
+        fontSize: 28,
+        fontWeight: '800',
+        color: Colors.text,
+        letterSpacing: -0.8,
+    },
+    headerActions: {
+        flexDirection: 'row',
+        gap: 10,
+    },
+    headerBtn: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
         backgroundColor: '#FFFFFF',
-        paddingVertical: 16,
-        paddingHorizontal: 4,
+        justifyContent: 'center',
+        alignItems: 'center',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.06,
-        shadowRadius: 8,
+        shadowRadius: 6,
         elevation: 3,
     },
+
+    // Progress
+    progressBar: {
+        height: 3,
+        backgroundColor: '#E2E8F0',
+        marginHorizontal: 20,
+        borderRadius: 2,
+        marginBottom: 12,
+        overflow: 'hidden',
+    },
+    progressFill: {
+        height: '100%',
+        backgroundColor: '#10B981',
+        borderRadius: 2,
+    },
+
+    // Stats strip
+    statsStrip: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        marginBottom: 12,
+    },
+    statsText: {
+        fontSize: 13,
+        color: Colors.textLight,
+        fontWeight: '500',
+    },
+    statsHighlight: {
+        color: Colors.text,
+        fontWeight: '700',
+    },
+    statsEarnings: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: Colors.success,
+    },
+
+    // Filters
+    filterContainer: {
+        paddingBottom: 12,
+        marginTop: 10,
+    },
     filterScroll: {
-        paddingHorizontal: 16,
-        gap: 10,
+        paddingHorizontal: 20,
+        gap: 8,
     },
     filterChip: {
-        paddingHorizontal: 20,
-        paddingVertical: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingHorizontal: 14,
+        paddingVertical: 10,
         borderRadius: 24,
         backgroundColor: '#F1F5F9',
         borderWidth: 0,
     },
     activeFilterChip: {
-        backgroundColor: '#2563EB',
-        shadowColor: '#2563EB',
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.3,
-        shadowRadius: 6,
-        elevation: 4,
+        backgroundColor: '#0F172A',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+        elevation: 5,
     },
     filterText: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: Colors.text,
-        letterSpacing: 0.2,
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#94A3B8',
     },
     activeFilterText: {
-        color: '#FFFFFF',
+        color: '#F59E0B',
+        fontWeight: '800',
     },
-    listContent: {
-        padding: 20,
-    },
-    emptyContainer: {
-        flex: 1,
+    filterBadge: {
+        minWidth: 18,
+        height: 18,
+        borderRadius: 9,
+        backgroundColor: '#E2E8F0',
         justifyContent: 'center',
         alignItems: 'center',
-        marginTop: 100,
+        paddingHorizontal: 4,
+    },
+    activeFilterBadge: {
+        backgroundColor: 'rgba(245,158,11,0.2)',
+    },
+    filterBadgeText: {
+        fontSize: 10,
+        fontWeight: '800',
+        color: '#64748B',
+    },
+    activeFilterBadgeText: {
+        color: '#F59E0B',
+    },
+
+    listContent: {
+        padding: 20,
+        paddingTop: 4,
+        paddingBottom: 120,
+    },
+    emptyContainer: {
+        alignItems: 'center',
+        marginTop: 80,
         paddingHorizontal: 40,
     },
+    emptyIconWrap: {
+        width: 88,
+        height: 88,
+        borderRadius: 28,
+        backgroundColor: '#FFFFFF',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.06,
+        shadowRadius: 10,
+        elevation: 3,
+    },
     emptyTitle: {
-        fontSize: 22,
+        fontSize: 20,
         fontWeight: '800',
         color: Colors.text,
-        marginTop: 20,
+        marginBottom: 8,
         letterSpacing: -0.5,
     },
     emptySubtitle: {
-        fontSize: 15,
+        fontSize: 14,
         color: Colors.textLight,
-        marginTop: 8,
         textAlign: 'center',
+        lineHeight: 20,
     },
 });

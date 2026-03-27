@@ -5,12 +5,13 @@ import React, { useEffect, useState } from 'react';
 import {
     RefreshControl,
     ScrollView,
+    StatusBar,
     StyleSheet,
     Text,
     TouchableOpacity,
     View
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBadge } from '../../components/StatusBadge';
 import { Colors } from '../../constants/Colors';
 import { useAuth } from '../../context/AuthContext';
@@ -22,10 +23,11 @@ export default function SummaryScreen() {
     const [deliveries, setDeliveries] = useState<Delivery[]>([]);
     const [refreshing, setRefreshing] = useState(false);
     const { user } = useAuth();
+    const insets = useSafeAreaInsets();
 
     const fetchData = React.useCallback(async () => {
         try {
-            if (!user) return; // Don't fetch if user is not logged in
+            if (!user) return;
             const data = await deliveryService.getDeliveries();
             setDeliveries(data);
             setRefreshing(false);
@@ -43,7 +45,6 @@ export default function SummaryScreen() {
     useEffect(() => {
         fetchData();
 
-        // Auto-refresh every 30 seconds for live updates
         const interval = setInterval(() => {
             fetchData();
         }, 30000);
@@ -64,7 +65,6 @@ export default function SummaryScreen() {
         };
     }, [fetchData]);
 
-    // Refresh when tab comes into focus
     useFocusEffect(
         React.useCallback(() => {
             fetchData();
@@ -77,7 +77,6 @@ export default function SummaryScreen() {
         upi: deliveries.reduce((total, d) => total + (d.transactions?.filter(t => t.paymentType === 'UPI').reduce((sum, t) => sum + t.amount, 0) || 0), 0),
     };
 
-    // Calculate deliveries by day of week based on scheduledDeliveryDate
     const chartData = [
         { label: 'Mon', value: 0 },
         { label: 'Tue', value: 0 },
@@ -88,151 +87,168 @@ export default function SummaryScreen() {
         { label: 'Sun', value: 0 },
     ];
 
-    // Count deliveries by scheduled delivery date
     deliveries.forEach(delivery => {
         if (delivery.status === 'DELIVERED') {
             const dateStr = delivery.scheduledDeliveryDate || delivery.createdAt;
             if (dateStr) {
                 const date = new Date(dateStr);
-                const dayIndex = date.getDay(); // 0 = Sunday, 1 = Monday, etc.
-                const mappedIndex = dayIndex === 0 ? 6 : dayIndex - 1; // Convert to Mon=0, Sun=6
+                const dayIndex = date.getDay();
+                const mappedIndex = dayIndex === 0 ? 6 : dayIndex - 1;
                 chartData[mappedIndex].value++;
             }
         }
     });
 
     const maxVal = Math.max(...chartData.map(d => d.value), 1);
+    const today = new Date().getDay();
+    const todayIndex = today === 0 ? 6 : today - 1;
 
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={styles.container} edges={['bottom']}>
+            <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+
+            {/* Blue Hero Header */}
+            <View style={[styles.heroHeader, { paddingTop: insets.top + 12 }]}>
+                <Text style={styles.heroEyebrow}>WEEKLY</Text>
+                <Text style={styles.heroTitle}>Performance</Text>
+            </View>
+
             <ScrollView
                 contentContainerStyle={styles.content}
                 refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.primary]} />
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#CC0000']} />
                 }
+                showsVerticalScrollIndicator={false}
             >
-                <Text style={styles.pageTitle}>Performance Analytics</Text>
 
-                {/* Weekly Chart */}
+                {/* Weekly Chart Card */}
                 <View style={styles.chartCard}>
-                    <Text style={styles.chartTitle}>Deliveries this Week</Text>
+                    <View style={styles.chartCardHeader}>
+                        <View>
+                            <Text style={styles.chartTitle}>Deliveries this Week</Text>
+                            <Text style={styles.chartSubtitle}>
+                                {new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}
+                            </Text>
+                        </View>
+                        <View style={styles.weeklyBadge}>
+                            <Ionicons name="trending-up" size={12} color="#10B981" />
+                            <Text style={styles.weeklyBadgeText}>+{stats.total} ↑</Text>
+                        </View>
+                    </View>
                     <View style={styles.chartContainer}>
-                        {chartData.map((data, index) => (
-                            <View key={index} style={styles.barWrapper}>
-                                <View style={styles.barValueContainer}>
-                                    {data.value > 0 && (
-                                        <Text style={styles.barValue}>{data.value}</Text>
-                                    )}
+                        {chartData.map((data, index) => {
+                            const isToday = index === todayIndex;
+                            const barHeight = Math.max((data.value / maxVal) * 100, 4);
+                            return (
+                                <View key={index} style={styles.barWrapper}>
+                                    <View style={styles.barValueContainer}>
+                                        {data.value > 0 && (
+                                            <Text style={[styles.barValue, isToday && styles.barValueActive]}>
+                                                {data.value}
+                                            </Text>
+                                        )}
+                                    </View>
+                                    <View
+                                        style={[
+                                            styles.bar,
+                                            { height: barHeight },
+                                            isToday ? styles.barActive : styles.barDefault
+                                        ]}
+                                    />
+                                    <Text style={[styles.barLabel, isToday && styles.barLabelActive]}>
+                                        {data.label}
+                                    </Text>
                                 </View>
-                                <View
-                                    style={[
-                                        styles.bar,
-                                        { height: (data.value / maxVal) * 100 }
-                                    ]}
-                                />
-                                <Text style={styles.barLabel}>{data.label}</Text>
-                            </View>
-                        ))}
+                            );
+                        })}
                     </View>
                 </View>
 
-                {/* Performance Cards */}
-                <View style={styles.performanceGrid}>
-                    <View style={[styles.performanceCard, styles.cardBlue]}>
-                        <View style={styles.cardIconContainer}>
-                            <Ionicons name="bicycle-outline" size={24} color="#2563EB" />
-                        </View>
-                        <Text style={styles.cardValue}>{stats.total}</Text>
-                        <Text style={styles.cardLabel}>Total Deliveries</Text>
+                {/* KPI Cards */}
+                <View style={styles.kpiGrid}>
+                    <View style={[styles.kpiCard, { backgroundColor: '#003087' }]}>
+                        <Text style={styles.kpiEmoji}>🚴</Text>
+                        <Text style={styles.kpiValue}>{stats.total}</Text>
+                        <Text style={styles.kpiLabel}>Total Deliveries</Text>
                     </View>
-
-                    <View style={[styles.performanceCard, styles.cardGreen]}>
-                        <View style={styles.cardIconContainer}>
-                            <Ionicons name="trending-up-outline" size={24} color="#10B981" />
-                        </View>
-                        <Text style={styles.cardValue}>₹{stats.cash + stats.upi}</Text>
-                        <Text style={styles.cardLabel}>Total Earnings</Text>
+                    <View style={[styles.kpiCard, { backgroundColor: '#007A3D' }]}>
+                        <Text style={styles.kpiEmoji}>💰</Text>
+                        <Text style={styles.kpiValue}>₹{(stats.cash + stats.upi).toLocaleString('en-IN')}</Text>
+                        <Text style={styles.kpiLabel}>Total Earnings</Text>
                     </View>
-
-                    <View style={[styles.performanceCard, styles.cardOrange]}>
-                        <View style={styles.cardIconContainer}>
-                            <Ionicons name="cash-outline" size={24} color="#F59E0B" />
-                        </View>
-                        <Text style={styles.cardValue}>₹{stats.cash}</Text>
-                        <Text style={styles.cardLabel}>Cash Total</Text>
+                    <View style={[styles.kpiCard, { backgroundColor: '#F5A623' }]}>
+                        <Text style={styles.kpiEmoji}>💵</Text>
+                        <Text style={styles.kpiValue}>₹{stats.cash.toLocaleString('en-IN')}</Text>
+                        <Text style={styles.kpiLabel}>Cash Total</Text>
                     </View>
-
-                    <View style={[styles.performanceCard, styles.cardPurple]}>
-                        <View style={styles.cardIconContainer}>
-                            <Ionicons name="qr-code-outline" size={24} color="#8B5CF6" />
-                        </View>
-                        <Text style={styles.cardValue}>₹{stats.upi}</Text>
-                        <Text style={styles.cardLabel}>UPI Total</Text>
+                    <View style={[styles.kpiCard, { backgroundColor: '#CC0000' }]}>
+                        <Text style={styles.kpiEmoji}>📱</Text>
+                        <Text style={styles.kpiValue}>₹{stats.upi.toLocaleString('en-IN')}</Text>
+                        <Text style={styles.kpiLabel}>UPI Total</Text>
                     </View>
                 </View>
 
                 {/* Transaction History */}
                 <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Transaction History</Text>
-                    <TouchableOpacity 
+                    <Text style={styles.sectionTitle}>Transactions</Text>
+                    <TouchableOpacity
                         style={styles.viewAllBtn}
                         onPress={() => router.push('/transactions')}
                     >
-                        <Text style={styles.viewAllText}>View All</Text>
-                        <Ionicons name="chevron-forward" size={16} color={Colors.primary} />
+                        <Text style={styles.viewAllText}>View All →</Text>
                     </TouchableOpacity>
                 </View>
+
                 <View style={styles.historyCard}>
                     {deliveries.filter(d =>
                         d.status === 'DELIVERED' && d.transactions && d.transactions.length > 0
                     ).length === 0 && (
-                        <View style={styles.emptyState}>
-                            <Ionicons name="receipt-outline" size={48} color={Colors.border} />
-                            <Text style={styles.noData}>No completed deliveries yet.</Text>
-                        </View>
-                    )}
+                            <View style={styles.emptyState}>
+                                <Ionicons name="receipt-outline" size={44} color={Colors.border} />
+                                <Text style={styles.noData}>No completed deliveries yet.</Text>
+                            </View>
+                        )}
                     {deliveries.filter(d =>
                         d.status === 'DELIVERED' && d.transactions && d.transactions.length > 0
                     ).flatMap((item) =>
                         item.transactions!.map(t => {
-                            // Get delivery date - use createdAt as actual delivery date
                             const deliveryDate = new Date(item.createdAt);
                             const today = new Date();
                             const yesterday = new Date(today);
                             yesterday.setDate(yesterday.getDate() - 1);
-                            
-                            // Reset time to compare only dates
+
                             today.setHours(0, 0, 0, 0);
                             yesterday.setHours(0, 0, 0, 0);
                             deliveryDate.setHours(0, 0, 0, 0);
-                            
+
                             let dateStr;
                             if (deliveryDate.getTime() === today.getTime()) {
                                 dateStr = 'Today';
                             } else if (deliveryDate.getTime() === yesterday.getTime()) {
                                 dateStr = 'Yesterday';
                             } else {
-                                // Format as DD-MM-YYYY
                                 const day = String(deliveryDate.getDate()).padStart(2, '0');
                                 const month = String(deliveryDate.getMonth() + 1).padStart(2, '0');
                                 const year = deliveryDate.getFullYear();
                                 dateStr = `${day}-${month}-${year}`;
                             }
-                            
+
+                            const isUPI = t.paymentType === 'UPI';
+
                             return (
                                 <View key={t.id} style={styles.historyItem}>
-                                    <View style={styles.historyIcon}>
+                                    <View style={[styles.historyIcon, { backgroundColor: isUPI ? '#EBF0F9' : '#FEF3E2' }]}>
                                         <Ionicons
-                                            name={t.paymentType === 'UPI' ? 'qr-code-outline' : 'cash-outline'}
-                                            size={22}
-                                            color={t.paymentType === 'UPI' ? '#8B5CF6' : '#F59E0B'}
+                                            name={isUPI ? 'qr-code-outline' : 'cash-outline'}
+                                            size={20}
+                                            color={isUPI ? '#003087' : '#F5A623'}
                                         />
                                     </View>
                                     <View style={styles.historyInfo}>
                                         <Text style={styles.historyName}>{item.customerName}</Text>
-                                        <Text style={styles.historyDate}>{dateStr} • {t.paymentType}</Text>
+                                        <Text style={styles.historyDate}>{dateStr} · {t.paymentType}</Text>
                                     </View>
-                                    <View style={styles.historyAmount}>
+                                    <View style={styles.historyRight}>
                                         <Text style={styles.amountText}>+₹{t.amount}</Text>
                                         <StatusBadge status="DELIVERED" />
                                     </View>
@@ -249,41 +265,98 @@ export default function SummaryScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F8FAFC',
+        backgroundColor: '#FFFFFF',
     },
     content: {
         padding: 20,
-        paddingBottom: 40,
+        paddingTop: 16,
+        paddingBottom: 100,
     },
-    pageTitle: {
+
+    // Hero Header
+    heroHeader: {
+        backgroundColor: '#003087',
+        paddingHorizontal: 20,
+        paddingBottom: 20,
+        borderBottomLeftRadius: 28,
+        borderBottomRightRadius: 28,
+    },
+    heroEyebrow: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: 'rgba(255,255,255,0.6)',
+        letterSpacing: 2,
+        marginBottom: 4,
+        textTransform: 'uppercase',
+    },
+    heroTitle: {
         fontSize: 28,
-        fontWeight: '800',
-        color: Colors.text,
-        marginBottom: 24,
-        letterSpacing: -1,
+        fontWeight: '900',
+        color: '#FFFFFF',
+        letterSpacing: -0.5,
     },
+    refreshBtn: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        backgroundColor: '#FFFFFF',
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 6,
+        elevation: 3,
+    },
+
+    // Chart
     chartCard: {
         backgroundColor: '#FFFFFF',
-        borderRadius: 16,
-        padding: 16,
-        marginBottom: 18,
+        borderRadius: 20,
+        padding: 20,
+        marginBottom: 16,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
+        shadowOpacity: 0.07,
         shadowRadius: 12,
         elevation: 4,
     },
+    chartCardHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        marginBottom: 20,
+    },
     chartTitle: {
-        fontSize: 16,
-        fontWeight: '700',
+        fontSize: 17,
+        fontWeight: '800',
         color: Colors.text,
-        marginBottom: 16,
+        marginBottom: 2,
+    },
+    chartSubtitle: {
+        fontSize: 13,
+        color: Colors.textLight,
+        fontWeight: '500',
+    },
+    weeklyBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        backgroundColor: '#D1FAE5',
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        borderRadius: 12,
+    },
+    weeklyBadgeText: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#10B981',
     },
     chartContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'flex-end',
-        height: 100,
+        height: 110,
         paddingTop: 12,
     },
     barWrapper: {
@@ -298,80 +371,73 @@ const styles = StyleSheet.create({
     barValue: {
         fontSize: 10,
         fontWeight: '700',
-        color: Colors.primary,
+        color: Colors.textLight,
+    },
+    barValueActive: {
+        color: '#CC0000',
     },
     bar: {
-        width: 20,
-        backgroundColor: Colors.primary,
-        borderRadius: 6,
-        marginBottom: 6,
+        width: 22,
+        borderRadius: 8,
+        marginBottom: 8,
         minHeight: 4,
+    },
+    barDefault: {
+        backgroundColor: '#E2E8F0',
+    },
+    barActive: {
+        backgroundColor: '#CC0000',
     },
     barLabel: {
         fontSize: 10,
         fontWeight: '600',
         color: Colors.textLight,
-        marginTop: 4,
     },
-    performanceGrid: {
+    barLabelActive: {
+        color: '#CC0000',
+        fontWeight: '800',
+    },
+
+    // KPI Grid
+    kpiGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         gap: 10,
-        marginBottom: 20,
+        marginBottom: 24,
     },
-    performanceCard: {
-        width: '48%',
-        backgroundColor: '#FFFFFF',
-        borderRadius: 14,
-        padding: 14,
+    kpiCard: {
+        width: '47.5%',
+        borderRadius: 20,
+        padding: 18,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 12,
-        elevation: 4,
+        shadowOpacity: 0.15,
+        shadowRadius: 10,
+        elevation: 5,
     },
-    cardBlue: {
-        borderLeftWidth: 4,
-        borderLeftColor: '#2563EB',
+    kpiEmoji: {
+        fontSize: 24,
+        marginBottom: 10,
     },
-    cardGreen: {
-        borderLeftWidth: 4,
-        borderLeftColor: '#10B981',
-    },
-    cardOrange: {
-        borderLeftWidth: 4,
-        borderLeftColor: '#F59E0B',
-    },
-    cardPurple: {
-        borderLeftWidth: 4,
-        borderLeftColor: '#8B5CF6',
-    },
-    cardIconContainer: {
-        width: 40,
-        height: 40,
-        borderRadius: 10,
-        backgroundColor: '#F8FAFC',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 8,
-    },
-    cardValue: {
+    kpiValue: {
         fontSize: 22,
         fontWeight: '800',
-        color: Colors.text,
-        marginBottom: 3,
+        color: '#FFFFFF',
+        marginBottom: 4,
         letterSpacing: -0.5,
     },
-    cardLabel: {
-        fontSize: 11,
+    kpiLabel: {
+        fontSize: 12,
         fontWeight: '600',
-        color: Colors.textLight,
+        color: 'rgba(255,255,255,0.7)',
     },
+
+    // Section Header
     sectionHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 16,
+        marginBottom: 14,
     },
     sectionTitle: {
         fontSize: 20,
@@ -380,40 +446,42 @@ const styles = StyleSheet.create({
         letterSpacing: -0.5,
     },
     viewAllBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
+        paddingHorizontal: 14,
+        paddingVertical: 6,
+        borderRadius: 20,
+        backgroundColor: '#EBF0F9',
     },
     viewAllText: {
-        fontSize: 14,
+        fontSize: 13,
         fontWeight: '700',
-        color: Colors.primary,
+        color: '#003087',
     },
+
+    // History
     historyCard: {
         backgroundColor: '#FFFFFF',
-        borderRadius: 16,
+        borderRadius: 20,
         padding: 16,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
+        shadowOpacity: 0.07,
         shadowRadius: 12,
         elevation: 4,
     },
     historyItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 10,
+        paddingVertical: 12,
         borderBottomWidth: 1,
-        borderBottomColor: '#F1F5F9',
+        borderBottomColor: '#F8FAFC',
     },
     historyIcon: {
-        width: 40,
-        height: 40,
-        borderRadius: 10,
-        backgroundColor: '#F8FAFC',
+        width: 44,
+        height: 44,
+        borderRadius: 14,
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 10,
+        marginRight: 12,
     },
     historyInfo: {
         flex: 1,
@@ -422,21 +490,21 @@ const styles = StyleSheet.create({
         fontSize: 15,
         fontWeight: '700',
         color: Colors.text,
-        marginBottom: 2,
+        marginBottom: 3,
     },
     historyDate: {
         fontSize: 12,
         color: Colors.textLight,
         fontWeight: '500',
     },
-    historyAmount: {
+    historyRight: {
         alignItems: 'flex-end',
+        gap: 4,
     },
     amountText: {
         fontSize: 15,
         fontWeight: '800',
         color: Colors.success,
-        marginBottom: 4,
     },
     emptyState: {
         alignItems: 'center',
@@ -446,6 +514,6 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         color: Colors.textLight,
         fontSize: 14,
-        marginTop: 12,
+        marginTop: 10,
     },
 });

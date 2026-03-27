@@ -8,13 +8,14 @@ import {
     KeyboardAvoidingView,
     Platform,
     ScrollView,
+    StatusBar,
     StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
     View
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppMap } from '../../components/AppMap';
 import { CustomButton } from '../../components/CustomButton';
 import { PaymentSelector } from '../../components/PaymentSelector';
@@ -28,6 +29,7 @@ import { routingService } from '../../services/routingService';
 const DeliveryDetailScreen = () => {
     const { id } = useLocalSearchParams();
     const router = useRouter();
+    const insets = useSafeAreaInsets();
     const { location: driverLoc } = useLocation();
     const [delivery, setDelivery] = useState<Delivery | null>(null);
     const [loading, setLoading] = useState(true);
@@ -37,7 +39,6 @@ const DeliveryDetailScreen = () => {
     const [confirming, setConfirming] = useState(false);
     const [isNavigating, setIsNavigating] = useState(false);
 
-    // Mapping states
     const [destinationLoc, setDestinationLoc] = useState<{ latitude: number, longitude: number } | null>(null);
     const [routeCoords, setRouteCoords] = useState<any[]>([]);
     const mapRef = useRef<any>(null);
@@ -50,15 +51,12 @@ const DeliveryDetailScreen = () => {
                 if (!deliveryId) return;
 
                 const taskPromise = deliveryService.getDeliveries().then(list => list.find(d => d.id === deliveryId));
-
-                // 2. Resolve Main Content ASAP
                 const item = await taskPromise;
                 if (item) {
                     setDelivery(item);
                     setAmount(item.amount ? item.amount.toString() : (item.quantity ? (item.quantity * 800).toString() : '800'));
                     setLoading(false);
 
-                    // 3. Initiate Map & Routing (Non-blocking)
                     const parsedLat = Number(item.latitude);
                     const parsedLng = Number(item.longitude);
 
@@ -66,11 +64,7 @@ const DeliveryDetailScreen = () => {
                         setDestinationLoc({ latitude: parsedLat, longitude: parsedLng });
                     } else {
                         routingService.geocodeAddress(item.customerAddress).then(dest => {
-                            if (dest) {
-                                setDestinationLoc(dest);
-                            } else {
-                                console.warn('Geocoding failed for:', item.customerAddress);
-                            }
+                            if (dest) setDestinationLoc(dest);
                         });
                     }
                 } else {
@@ -81,7 +75,6 @@ const DeliveryDetailScreen = () => {
                 setLoading(false);
             }
         };
-
         initializeSession();
     }, [id]);
 
@@ -91,7 +84,6 @@ const DeliveryDetailScreen = () => {
                 try {
                     const coords = await routingService.getRoute(driverLoc, destinationLoc);
                     setRouteCoords(coords);
-                    console.log(`[Navigation] Route found with ${coords.length} points`);
                 } catch (e) {
                     console.error('Route update error:', e);
                 }
@@ -100,13 +92,11 @@ const DeliveryDetailScreen = () => {
         }
     }, [isNavigating, driverLoc, destinationLoc]);
 
-    // Force map to fit markers whenever they change
     useEffect(() => {
         if (mapReady && mapRef.current && (driverLoc || destinationLoc)) {
             const points = [];
             if (isNavigating && driverLoc) points.push(driverLoc);
             if (destinationLoc) points.push(destinationLoc);
-
             if (points.length > 0 && Platform.OS !== 'web') {
                 mapRef.current.fitToCoordinates(points, {
                     edgePadding: { top: 100, right: 100, bottom: 100, left: 100 },
@@ -118,18 +108,12 @@ const DeliveryDetailScreen = () => {
 
     const handleStartNavigation = async () => {
         if (!delivery) return;
-
         try {
-            // 1. Update status to OUT_FOR_DELIVERY if pending
             if (delivery.status === 'PENDING') {
                 const updated = await deliveryService.updateDeliveryStatus(delivery.id, 'OUT_FOR_DELIVERY');
                 setDelivery(updated);
             }
-
-            // 2. Enable in-app route polyline
             setIsNavigating(true);
-
-            // 3. Optional: Open external detailed turn-by-turn
             if (destinationLoc) {
                 const lat = destinationLoc.latitude;
                 const lng = destinationLoc.longitude;
@@ -138,10 +122,9 @@ const DeliveryDetailScreen = () => {
                     android: `geo:0,0?q=${lat},${lng}(Delivery)`,
                     default: `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
                 });
-
                 Alert.alert(
                     'Tracking Started',
-                    'Real-time route is now visible in-app. Do you also want to open turn-by-turn navigation?',
+                    'Real-time route is now visible in-app. Open turn-by-turn navigation?',
                     [
                         { text: 'Stay in App', style: 'cancel' },
                         { text: 'Open Maps', onPress: () => url && Linking.openURL(url) }
@@ -175,40 +158,65 @@ const DeliveryDetailScreen = () => {
         }
     };
 
-    if (loading) {
-        return (
-            <View style={styles.loaderContainer}>
-                <ActivityIndicator size="large" color={Colors.primary} />
-                <Text style={styles.loadingText}>Fetching Delivery Data...</Text>
-            </View>
-        );
-    }
+    const isPaid = delivery?.status === 'DELIVERED';
 
-    if (!delivery) {
-        return (
-            <View style={styles.loaderContainer}>
-                <Text>Task not found</Text>
-                <CustomButton title="Go Back" onPress={() => router.back()} style={{ marginTop: 20 }} />
-            </View>
-        );
-    }
-
-    const isPaid = delivery.status === 'DELIVERED';
+    const statusColor: Record<string, string> = {
+        'PENDING': '#2563EB',
+        'OUT_FOR_DELIVERY': '#F59E0B',
+        'DELIVERED': '#10B981',
+        'CANCELLED': '#EF4444',
+    };
+    const accentColor = statusColor[delivery?.status ?? ''] || Colors.primary;
 
     return (
-        <SafeAreaView style={styles.container}>
-            <Stack.Screen options={{ title: 'Dispatch Tracking', headerShown: true }} />
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-                <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <SafeAreaView style={styles.container} edges={['bottom']}>
+            <Stack.Screen options={{ headerShown: false }} />
+            <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
 
-                    {/* Real-time Map (Loads Dynamically) */}
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+
+                {/* ── HERO HEADER ── */}
+                <View style={[styles.heroHeader, { paddingTop: insets.top + 12 }]}>
+                    {/* Back + Title row */}
+                    <View style={styles.heroTopRow}>
+                        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+                            <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
+                        </TouchableOpacity>
+                        <View style={{ flex: 1, marginLeft: 12 }}>
+                            <Text style={styles.heroEyebrow}>DISPATCH TRACKING</Text>
+                            <Text style={styles.heroTitle} numberOfLines={1}>
+                                {loading ? 'Loading...' : (delivery?.customerName || 'Delivery Task')}
+                            </Text>
+                        </View>
+                        {delivery && (
+                            <StatusBadge status={delivery.status === 'PENDING' ? 'Assigned' : delivery.status} />
+                        )}
+                    </View>
+                </View>
+
+                <ScrollView
+                    contentContainerStyle={styles.content}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                >
+                    {/* Show inline loader while data fetches — page/hero stays visible */}
+                    {(loading || !delivery) ? (
+                        <View style={styles.inlineLoader}>
+                            <ActivityIndicator size="large" color={Colors.primary} />
+                            <Text style={styles.loadingText}>Loading delivery details...</Text>
+                        </View>
+                    ) : (
+                    <>
+                    {/* ── MAP CARD ── */}
                     <View style={styles.mapCard}>
                         <View style={styles.mapHeader}>
                             <View style={styles.liveIndicator}>
-                                <View style={styles.dot} />
-                                <Text style={styles.liveText}>FLEET TRACKER</Text>
+                                <View style={[styles.dot, { backgroundColor: isNavigating ? '#10B981' : '#F59E0B' }]} />
+                                <Text style={styles.liveText}>{isNavigating ? 'LIVE ROUTING' : 'FLEET TRACKER'}</Text>
                             </View>
-                            <Text style={styles.distanceText}>Syncing nearest path...</Text>
+                            <Text style={styles.distanceText}>
+                                {isNavigating ? `${routeCoords.length} route points` : 'Syncing nearest path...'}
+                            </Text>
                         </View>
                         <View style={styles.mapPlaceholder}>
                             <AppMap
@@ -218,153 +226,162 @@ const DeliveryDetailScreen = () => {
                                 routeCoords={isNavigating ? routeCoords : []}
                                 onMapReady={() => setMapReady(true)}
                             />
-                            {/* Locate Me Button Overlay */}
-                            <View style={styles.mapControls}>
-                                <TouchableOpacity
-                                    style={styles.controlBtn}
-                                    onPress={() => {
-                                        if (isNavigating && driverLoc && mapRef.current) {
-                                            // If navigating, center on driver location
-                                            if (Platform.OS !== 'web') {
-                                                mapRef.current.animateToRegion({
-                                                    ...driverLoc,
-                                                    latitudeDelta: 0.01,
-                                                    longitudeDelta: 0.01
-                                                });
-                                            }
-                                        } else if (destinationLoc && mapRef.current) {
-                                            // If not navigating, center on destination
-                                            if (Platform.OS !== 'web') {
-                                                mapRef.current.animateToRegion({
-                                                    ...destinationLoc,
-                                                    latitudeDelta: 0.01,
-                                                    longitudeDelta: 0.01
-                                                });
-                                            }
-                                        }
-                                    }}
-                                >
-                                    <Ionicons name="locate" size={24} color={Colors.primary} />
-                                </TouchableOpacity>
-                            </View>
+                            <TouchableOpacity
+                                style={styles.recenterBtn}
+                                onPress={() => {
+                                    if (isNavigating && driverLoc && mapRef.current && Platform.OS !== 'web') {
+                                        mapRef.current.animateToRegion({ ...driverLoc, latitudeDelta: 0.01, longitudeDelta: 0.01 });
+                                    } else if (destinationLoc && mapRef.current && Platform.OS !== 'web') {
+                                        mapRef.current.animateToRegion({ ...destinationLoc, latitudeDelta: 0.01, longitudeDelta: 0.01 });
+                                    }
+                                }}
+                            >
+                                <Ionicons name="locate" size={20} color="#FFFFFF" />
+                            </TouchableOpacity>
                         </View>
+
                         {(delivery.status === 'PENDING' || delivery.status === 'OUT_FOR_DELIVERY') && (
-                            <CustomButton
-                                title={delivery.status === 'PENDING' ? "Start GPS Navigation" : "Reroute Navigation"}
-                                variant="primary"
-                                size="md"
+                            <TouchableOpacity
+                                style={[styles.navBtn, { backgroundColor: isNavigating ? '#059669' : Colors.primary }]}
                                 onPress={handleStartNavigation}
-                                style={{ marginTop: 12, borderRadius: 16 }}
-                                textStyle={{ fontSize: 13, fontWeight: '800' }}
-                            />
+                                activeOpacity={0.88}
+                            >
+                                <Ionicons
+                                    name={isNavigating ? 'navigate' : 'navigate-outline'}
+                                    size={18}
+                                    color="#FFFFFF"
+                                />
+                                <Text style={styles.navBtnText}>
+                                    {delivery.status === 'PENDING' ? 'Start GPS Navigation' : 'Reroute Navigation'}
+                                </Text>
+                            </TouchableOpacity>
                         )}
                     </View>
 
-                    <View style={styles.section}>
-                        <View style={styles.sectionHeader}>
-                            <Text style={styles.sectionTitle}>Customer Details</Text>
-                            <StatusBadge status={delivery.status === 'PENDING' ? 'Assigned' : delivery.status} />
+                    {/* ── CUSTOMER DETAILS ── */}
+                    <View style={styles.sectionHeader}>
+                        <Ionicons name="person-circle-outline" size={16} color={Colors.textLight} />
+                        <Text style={styles.sectionLabel}>CUSTOMER DETAILS</Text>
+                    </View>
+                    <View style={styles.card}>
+                        <View style={styles.customerRow}>
+                            <View style={[styles.custAvatar, { backgroundColor: accentColor + '20' }]}>
+                                <Ionicons name="person" size={24} color={accentColor} />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.custName}>{delivery.customerName}</Text>
+                                <Text style={styles.custPhone}>+91 {delivery.customerPhone}</Text>
+                            </View>
+                            <TouchableOpacity
+                                style={[styles.callBtn, { backgroundColor: '#D1FAE5' }]}
+                                onPress={() => Linking.openURL(`tel:${delivery.customerPhone}`)}
+                            >
+                                <Ionicons name="call" size={18} color="#10B981" />
+                            </TouchableOpacity>
                         </View>
-                        <View style={styles.infoCard}>
-                            <View style={styles.infoRow}>
-                                <Ionicons name="person-circle" size={40} color={Colors.primary} />
-                                <View style={styles.textGroup}>
-                                    <Text style={styles.primaryText}>{delivery.customerName}</Text>
-                                    <Text style={styles.secondaryText}>+91 {delivery.customerPhone}</Text>
-                                </View>
-                                <Ionicons name="call" size={24} color={Colors.success} style={{ marginLeft: 'auto' }} onPress={() => Linking.openURL(`tel:${delivery.customerPhone}`)} />
-                            </View>
-                            <View style={styles.addressBox}>
-                                <Ionicons name="map" size={16} color={Colors.textLight} />
-                                <Text style={styles.addressText}>{delivery.customerAddress}</Text>
-                            </View>
+                        <View style={styles.addressRow}>
+                            <Ionicons name="location-outline" size={15} color={Colors.textLight} />
+                            <Text style={styles.addressText}>{delivery.customerAddress}</Text>
                         </View>
                     </View>
 
+                    {/* ── SCHEDULED DATE ── */}
                     {(delivery.scheduledDeliveryDate || delivery.createdAt) && (
-                        <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>Scheduled Delivery</Text>
-                            <View style={styles.infoCard}>
-                                <View style={styles.infoRow}>
-                                    <Ionicons name="calendar" size={24} color={Colors.primary} />
-                                    <View style={styles.textGroup}>
-                                        <Text style={styles.primaryText}>
+                        <>
+                            <View style={styles.sectionHeader}>
+                                <Ionicons name="calendar-outline" size={16} color={Colors.textLight} />
+                                <Text style={styles.sectionLabel}>SCHEDULED DELIVERY</Text>
+                            </View>
+                            <View style={styles.card}>
+                                <View style={styles.scheduleRow}>
+                                    <View style={[styles.scheduleIconBox, { backgroundColor: '#EDE9FE' }]}>
+                                        <Ionicons name="calendar" size={22} color="#7C3AED" />
+                                    </View>
+                                    <View>
+                                        <Text style={styles.schedDate}>
                                             {new Date(delivery.scheduledDeliveryDate || delivery.createdAt).toLocaleDateString('en-IN', {
-                                                weekday: 'long',
-                                                year: 'numeric',
-                                                month: 'long',
-                                                day: 'numeric'
+                                                weekday: 'long', day: 'numeric', month: 'long'
                                             })}
                                         </Text>
-                                        <Text style={styles.secondaryText}>
+                                        <Text style={styles.schedTime}>
                                             {new Date(delivery.scheduledDeliveryDate || delivery.createdAt).toLocaleTimeString('en-IN', {
-                                                hour: '2-digit',
-                                                minute: '2-digit'
+                                                hour: '2-digit', minute: '2-digit'
                                             })}
                                         </Text>
                                     </View>
                                 </View>
                             </View>
-                        </View>
+                        </>
                     )}
 
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Collection Payment</Text>
-                        <View style={styles.card}>
-                            <PaymentSelector
-                                selectedMode={paymentMode}
-                                onSelect={!isPaid ? setPaymentMode : () => { }}
-                            />
-
-                            <View style={styles.amountBox}>
-                                <Text style={styles.inputLabel}>Amount to Collect (₹)</Text>
-                                <View style={styles.inputContainer}>
-                                    <Text style={styles.currency}>₹</Text>
-                                    <TextInput
-                                        style={styles.input}
-                                        keyboardType="numeric"
-                                        value={amount}
-                                        onChangeText={setAmount}
-                                        editable={!isPaid}
-                                    />
-                                </View>
-                            </View>
-
-                            {paymentMode === 'UPI' && (
-                                <View style={styles.upiSection}>
-                                    <View style={styles.qrPlaceholder}>
-                                        <Ionicons name="qr-code" size={100} color={Colors.text} />
-                                        <Text style={[styles.qrText, { color: Colors.primary }]}>SCAN FOR MERCHANT UPI</Text>
-                                    </View>
-                                    <Text style={styles.inputLabel}>UPI Reference Number</Text>
-                                    <TextInput
-                                        style={[styles.input, styles.borderedInput]}
-                                        placeholder="Enter Ref No."
-                                        value={txnId}
-                                        onChangeText={setTxnId}
-                                        editable={!isPaid}
-                                    />
-                                </View>
-                            )}
-
-                            {!isPaid && (
-                                <CustomButton
-                                    title="Mark as Delivered"
-                                    onPress={handleConfirmPayment}
-                                    loading={confirming}
-                                    style={styles.confirmBtn}
-                                    variant="success"
-                                    size="lg"
-                                />
-                            )}
-                            {isPaid && (
-                                <View style={styles.paidSuccess}>
-                                    <Ionicons name="checkmark-done-circle" size={40} color={Colors.success} />
-                                    <Text style={styles.paidTitle}>DELIVERY COMPLETED</Text>
-                                </View>
-                            )}
-                        </View>
+                    {/* ── PAYMENT COLLECTION ── */}
+                    <View style={styles.sectionHeader}>
+                        <Ionicons name="wallet-outline" size={16} color={Colors.textLight} />
+                        <Text style={styles.sectionLabel}>COLLECTION & PAYMENT</Text>
                     </View>
+                    <View style={styles.card}>
+                        <PaymentSelector
+                            selectedMode={paymentMode}
+                            onSelect={!isPaid ? setPaymentMode : () => { }}
+                        />
+
+                        <View style={styles.amountBox}>
+                            <Text style={styles.inputLabel}>Amount to Collect (₹)</Text>
+                            <View style={styles.inputContainer}>
+                                <Text style={styles.currency}>₹</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    keyboardType="numeric"
+                                    value={amount}
+                                    onChangeText={setAmount}
+                                    editable={!isPaid}
+                                    placeholder="0"
+                                    placeholderTextColor="#CBD5E1"
+                                />
+                            </View>
+                        </View>
+
+                        {paymentMode === 'UPI' && (
+                            <View style={styles.upiSection}>
+                                <View style={styles.qrBox}>
+                                    <Ionicons name="qr-code" size={90} color={Colors.text} />
+                                    <Text style={styles.qrLabel}>SCAN FOR MERCHANT UPI</Text>
+                                </View>
+                                <Text style={styles.inputLabel}>UPI Reference Number</Text>
+                                <TextInput
+                                    style={styles.borderedInput}
+                                    placeholder="Enter Ref No."
+                                    placeholderTextColor="#94A3B8"
+                                    value={txnId}
+                                    onChangeText={setTxnId}
+                                    editable={!isPaid}
+                                />
+                            </View>
+                        )}
+
+                        {!isPaid && (
+                            <CustomButton
+                                title="Mark as Delivered"
+                                onPress={handleConfirmPayment}
+                                loading={confirming}
+                                style={styles.confirmBtn}
+                                variant="success"
+                                size="lg"
+                            />
+                        )}
+
+                        {isPaid && (
+                            <View style={styles.paidSuccess}>
+                                <View style={styles.paidIconWrap}>
+                                    <Ionicons name="checkmark-done-circle" size={48} color="#10B981" />
+                                </View>
+                                <Text style={styles.paidTitle}>DELIVERY COMPLETED</Text>
+                                <Text style={styles.paidSub}>Payment collected successfully</Text>
+                            </View>
+                        )}
+                    </View>
+                    </>
+                    )}
                 </ScrollView>
             </KeyboardAvoidingView>
         </SafeAreaView>
@@ -374,40 +391,359 @@ const DeliveryDetailScreen = () => {
 export default DeliveryDetailScreen;
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#f8fafc' },
-    loaderContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    loadingText: { marginTop: 12, fontSize: 13, color: '#64748b', fontWeight: '600' },
-    content: { padding: 16 },
-    section: { marginBottom: 24 },
-    sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-    sectionTitle: { fontSize: 20, fontWeight: '800', color: Colors.text, letterSpacing: -0.5 },
-    mapCard: { backgroundColor: 'white', borderRadius: 24, padding: 12, marginBottom: 24, borderWidth: 1, borderColor: '#e2e8f0', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 4 },
-    mapHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 4, marginBottom: 12 },
-    liveIndicator: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#f0fdf4', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
-    dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#22c55e' },
-    liveText: { fontSize: 10, fontWeight: '900', color: '#166534', letterSpacing: 0.5 },
-    distanceText: { fontSize: 11, color: '#64748b', fontStyle: 'italic' },
-    mapPlaceholder: { height: 250, backgroundColor: '#f1f5f9', borderRadius: 20, overflow: 'hidden' },
-    infoCard: { backgroundColor: 'white', borderRadius: 24, padding: 20, borderWidth: 1, borderColor: '#e2e8f0', elevation: 2 },
-    infoRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-    textGroup: { flex: 1 },
-    primaryText: { fontSize: 18, fontWeight: '700', color: Colors.text },
-    secondaryText: { fontSize: 14, color: '#64748b' },
-    mapControls: { position: 'absolute', bottom: 16, right: 16, zIndex: 10 },
-    controlBtn: { backgroundColor: 'white', width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 8, elevation: 4, borderWidth: 1, borderColor: '#e2e8f0' },
-    addressBox: { marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#f1f5f9', flexDirection: 'row', gap: 10 },
-    addressText: { fontSize: 14, color: Colors.text, lineHeight: 20, flex: 1 },
-    card: { backgroundColor: 'white', borderRadius: 24, padding: 20, borderWidth: 1, borderColor: '#e2e8f0', elevation: 2 },
-    amountBox: { marginTop: 24 },
-    inputLabel: { fontSize: 14, fontWeight: '700', color: Colors.text, marginBottom: 10 },
-    inputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8fafc', borderRadius: 16, paddingHorizontal: 16, borderWidth: 1, borderColor: '#e2e8f0' },
-    currency: { fontSize: 20, fontWeight: '800', color: Colors.text, marginRight: 4 },
-    input: { flex: 1, paddingVertical: 14, fontSize: 20, fontWeight: '800', color: Colors.text },
-    upiSection: { marginTop: 24, paddingTop: 24, borderTopWidth: 1, borderTopColor: '#f1f5f9' },
-    qrPlaceholder: { alignItems: 'center', marginBottom: 24 },
-    qrText: { marginTop: 12, fontSize: 12, fontWeight: '900', letterSpacing: 1 },
-    borderedInput: { backgroundColor: '#f8fafc', borderRadius: 16, paddingHorizontal: 16, borderWidth: 1, borderColor: '#e2e8f0', fontSize: 16, fontWeight: '600' },
-    confirmBtn: { marginTop: 32 },
-    paidSuccess: { alignItems: 'center', paddingVertical: 20 },
-    paidTitle: { fontSize: 14, fontWeight: '900', color: Colors.success, marginTop: 10, letterSpacing: 2 }
+    container: {
+        flex: 1,
+        backgroundColor: '#F1F5F9',
+    },
+    loaderContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#F1F5F9',
+        gap: 12,
+    },
+    inlineLoader: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: 80,
+        gap: 14,
+    },
+    loadingText: {
+        fontSize: 14,
+        color: Colors.textLight,
+        fontWeight: '600',
+    },
+
+    // Hero
+    heroHeader: {
+        backgroundColor: '#003087',
+        paddingHorizontal: 20,
+        paddingBottom: 24,
+        borderBottomLeftRadius: 32,
+        borderBottomRightRadius: 32,
+    },
+    heroTopRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    backBtn: {
+        width: 38,
+        height: 38,
+        borderRadius: 12,
+        backgroundColor: 'rgba(255,255,255,0.12)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    heroEyebrow: {
+        fontSize: 9,
+        fontWeight: '800',
+        color: 'rgba(255,255,255,0.5)',
+        letterSpacing: 1.5,
+        marginBottom: 2,
+    },
+    heroTitle: {
+        fontSize: 20,
+        fontWeight: '800',
+        color: '#FFFFFF',
+        letterSpacing: -0.5,
+    },
+    heroChips: {
+        flexDirection: 'row',
+        gap: 8,
+        flexWrap: 'wrap',
+    },
+    heroChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 5,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.2)',
+        borderRadius: 20,
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        backgroundColor: 'rgba(255,255,255,0.07)',
+    },
+    heroChipText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: 'rgba(255,255,255,0.8)',
+    },
+    navDot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: '#10B981',
+    },
+
+    // Scroll content
+    content: {
+        padding: 20,
+        paddingTop: 20,
+        paddingBottom: 120,
+    },
+
+    // Map Card
+    mapCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 24,
+        padding: 14,
+        marginBottom: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        elevation: 5,
+    },
+    mapHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12,
+        paddingHorizontal: 4,
+    },
+    liveIndicator: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        backgroundColor: '#F0FDF4',
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        borderRadius: 12,
+    },
+    dot: {
+        width: 7,
+        height: 7,
+        borderRadius: 3.5,
+    },
+    liveText: {
+        fontSize: 10,
+        fontWeight: '900',
+        color: '#166534',
+        letterSpacing: 0.5,
+    },
+    distanceText: {
+        fontSize: 11,
+        color: Colors.textLight,
+        fontStyle: 'italic',
+    },
+    mapPlaceholder: {
+        height: 240,
+        borderRadius: 18,
+        overflow: 'hidden',
+        backgroundColor: '#F1F5F9',
+    },
+    recenterBtn: {
+        position: 'absolute',
+        bottom: 12,
+        right: 12,
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: Colors.primary,
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: Colors.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 5,
+        zIndex: 10,
+    },
+    navBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        marginTop: 12,
+        borderRadius: 16,
+        paddingVertical: 14,
+    },
+    navBtnText: {
+        fontSize: 14,
+        fontWeight: '800',
+        color: '#FFFFFF',
+        letterSpacing: 0.3,
+    },
+
+    // Section labels
+    sectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        marginBottom: 10,
+        marginTop: 4,
+    },
+    sectionLabel: {
+        fontSize: 11,
+        fontWeight: '800',
+        color: Colors.textLight,
+        letterSpacing: 1.5,
+    },
+
+    // Cards
+    card: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 20,
+        padding: 18,
+        marginBottom: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.06,
+        shadowRadius: 10,
+        elevation: 3,
+    },
+
+    // Customer
+    customerRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        marginBottom: 14,
+    },
+    custAvatar: {
+        width: 48,
+        height: 48,
+        borderRadius: 16,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    custName: {
+        fontSize: 17,
+        fontWeight: '800',
+        color: Colors.text,
+        marginBottom: 2,
+    },
+    custPhone: {
+        fontSize: 13,
+        color: Colors.textLight,
+        fontWeight: '500',
+    },
+    callBtn: {
+        width: 44,
+        height: 44,
+        borderRadius: 14,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    addressRow: {
+        flexDirection: 'row',
+        gap: 8,
+        alignItems: 'flex-start',
+        backgroundColor: '#F8FAFC',
+        borderRadius: 12,
+        padding: 10,
+    },
+    addressText: {
+        flex: 1,
+        fontSize: 13,
+        color: Colors.textLight,
+        lineHeight: 19,
+    },
+
+    // Schedule
+    scheduleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 14,
+    },
+    scheduleIconBox: {
+        width: 48,
+        height: 48,
+        borderRadius: 14,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    schedDate: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: Colors.text,
+        marginBottom: 3,
+    },
+    schedTime: {
+        fontSize: 13,
+        color: Colors.textLight,
+        fontWeight: '500',
+    },
+
+    // Payment
+    amountBox: { marginTop: 20 },
+    inputLabel: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: Colors.text,
+        marginBottom: 10,
+    },
+    inputContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F8FAFC',
+        borderRadius: 16,
+        paddingHorizontal: 16,
+        borderWidth: 1.5,
+        borderColor: '#E2E8F0',
+    },
+    currency: {
+        fontSize: 22,
+        fontWeight: '800',
+        color: Colors.text,
+        marginRight: 4,
+    },
+    input: {
+        flex: 1,
+        paddingVertical: 14,
+        fontSize: 22,
+        fontWeight: '800',
+        color: Colors.text,
+    },
+    upiSection: {
+        marginTop: 20,
+        paddingTop: 20,
+        borderTopWidth: 1,
+        borderTopColor: '#F1F5F9',
+    },
+    qrBox: { alignItems: 'center', marginBottom: 20 },
+    qrLabel: {
+        marginTop: 10,
+        fontSize: 11,
+        fontWeight: '900',
+        color: Colors.primary,
+        letterSpacing: 1,
+    },
+    borderedInput: {
+        backgroundColor: '#F8FAFC',
+        borderRadius: 14,
+        paddingHorizontal: 16,
+        paddingVertical: 13,
+        borderWidth: 1.5,
+        borderColor: '#E2E8F0',
+        fontSize: 15,
+        fontWeight: '600',
+        color: Colors.text,
+        marginTop: 2,
+    },
+    confirmBtn: { marginTop: 24 },
+    paidSuccess: { alignItems: 'center', paddingVertical: 16 },
+    paidIconWrap: {
+        width: 80,
+        height: 80,
+        borderRadius: 24,
+        backgroundColor: '#D1FAE5',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    paidTitle: {
+        fontSize: 15,
+        fontWeight: '900',
+        color: '#059669',
+        letterSpacing: 2,
+        marginBottom: 4,
+    },
+    paidSub: {
+        fontSize: 13,
+        color: Colors.textLight,
+        fontWeight: '500',
+    },
 });

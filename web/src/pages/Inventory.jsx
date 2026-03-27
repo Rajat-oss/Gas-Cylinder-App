@@ -70,20 +70,20 @@ const StockItemCard = ({ item, onAdjust, onQuickAdjust }) => {
       <div className="flex gap-2">
         <button
           onClick={() => onQuickAdjust(item.id, -1)}
-          className="w-10 h-10 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all"
+          className="w-10 h-10 rounded-md bg-white border border-gray-200 shadow-sm flex items-center justify-center text-gray-500 hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-all"
           title="Decrease stock by 1"
         >
           <Minus size={18} strokeWidth={3} />
         </button>
         <button
           onClick={() => onAdjust(item.id, "FULL")}
-          className="flex-1 bg-gray-100 text-gray-600 font-medium rounded-lg border border-gray-200 hover:bg-gray-200 transition-all flex items-center justify-center gap-2 text-sm"
+          className="flex-1 bg-white shadow-sm text-gray-600 font-bold tracking-wide rounded-md border border-gray-200 hover:bg-gray-50 transition-all flex items-center justify-center gap-1.5 text-[13px]"
         >
-          <Settings2 size={14} /> Manage
+          <Settings2 size={16} strokeWidth={2.5} /> Manage
         </button>
         <button
           onClick={() => onQuickAdjust(item.id, 1)}
-          className="w-10 h-10 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 transition-all"
+          className="w-10 h-10 rounded-md bg-white border border-gray-200 shadow-sm flex items-center justify-center text-gray-500 hover:bg-[#E8F5E9] hover:text-[#00C853] hover:border-[#00C853] transition-all"
           title="Increase stock by 1"
         >
           <Plus size={18} strokeWidth={3} />
@@ -262,14 +262,14 @@ const Inventory = () => {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setIsAddingItem(true)}
-              className="group relative px-5 py-2.5 bg-gradient-to-r from-[#1F2933] to-gray-700 text-white font-semibold rounded-xl flex items-center gap-2 transition-all hover:shadow-lg hover:shadow-gray-300/50"
+              className="px-5 py-2 bg-[#00C853] hover:bg-[#00B248] text-white font-bold text-[13px] tracking-wide rounded-lg flex items-center gap-1.5 transition-all shadow-sm shadow-[#00C853]/20"
             >
-              <PlusCircle size={18} />
+              <PlusCircle size={16} strokeWidth={2.5} />
               <span>New Type</span>
             </button>
             <button
               onClick={fetchStock}
-              className="p-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl transition-all border border-gray-200"
+              className="p-2 bg-white hover:bg-gray-50 text-gray-600 rounded-lg transition-all border border-gray-200 shadow-sm"
               title="Refresh Inventory"
             >
               <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
@@ -339,7 +339,7 @@ const Inventory = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50 text-gray-500 text-xs font-semibold uppercase tracking-wide">
+              <tr className="border-b border-gray-200 bg-white text-gray-400 text-[10px] font-bold uppercase tracking-wider">
                 <th className="px-5 py-3.5">Timestamp</th>
                 <th className="px-5 py-3.5">Item Type</th>
                 <th className="px-5 py-3.5">Stock Type</th>
@@ -358,7 +358,7 @@ const Inventory = () => {
                   Domestic 14.2kg
                 </td>
                 <td className="px-5 py-4">
-                  <span className="px-2 py-1 rounded-md bg-blue-50 text-blue-600 text-[10px] font-medium">
+                  <span className="px-2.5 py-1 rounded-full bg-[#EBF5FF] text-[#3B82F6] text-[10px] font-bold tracking-widest uppercase">
                     Full
                   </span>
                 </td>
@@ -478,9 +478,9 @@ const Inventory = () => {
                 </button>
                 <button
                   onClick={saveAdjustment}
-                  className="flex-1 bg-[#1F2933] text-white font-medium py-2.5 rounded-xl hover:bg-gray-700 transition-colors flex items-center justify-center gap-2"
+                  className="flex-1 bg-[#00C853] text-white font-bold tracking-wide py-2.5 rounded-xl hover:bg-[#00B248] transition-colors flex items-center justify-center gap-2 shadow-sm shadow-[#00C853]/20"
                 >
-                  <Settings2 size={16} /> Apply Changes
+                  <Settings2 size={16} strokeWidth={2.5} /> Apply Changes
                 </button>
               </div>
             </div>
@@ -567,10 +567,10 @@ const Inventory = () => {
                 </button>
                 <button
                   onClick={saveNewItem}
-                  className="flex-1 bg-[#1F2933] text-white font-medium py-2.5 rounded-xl hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="flex-1 bg-[#00C853] text-white font-bold tracking-wide py-2.5 rounded-xl hover:bg-[#00B248] transition-colors flex items-center justify-center gap-2 disabled:opacity-50 shadow-sm shadow-[#00C853]/20"
                   disabled={!newItemData.cylinderType.trim()}
                 >
-                  <PlusCircle size={16} /> Add Type
+                  <PlusCircle size={16} strokeWidth={2.5} /> Add Type
                 </button>
               </div>
             </div>

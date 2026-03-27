@@ -85,7 +85,7 @@ const FinancialSettlement = () => {
               </button>
               <button
                 onClick={() => window.print()}
-                className="px-4 py-2 bg-[#1F2933] hover:bg-gray-700 text-white font-medium rounded-xl flex items-center gap-2 transition-colors text-sm"
+                className="px-4 py-2 bg-[#00C853] hover:bg-[#00B248] text-white font-bold rounded-lg flex items-center gap-2 transition-colors text-[13px] tracking-wide shadow-sm shadow-[#00C853]/20"
               >
                 <Printer size={16} /> Print Report
               </button>
@@ -107,7 +107,7 @@ const FinancialSettlement = () => {
             <select
               value={selectedDriver}
               onChange={(e) => setSelectedDriver(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2.5 px-3 text-[#1F2933] text-sm focus:ring-2 focus:ring-gray-200 focus:border-gray-300 outline-none transition-all"
+              className="w-full bg-white border border-gray-200 rounded-lg py-2.5 px-3 text-[#1F2933] text-[13px] font-medium focus:ring-1 focus:ring-[#00C853] focus:border-[#00C853] outline-none transition-all shadow-sm"
             >
               <option value="">Choose a staff member...</option>
               {drivers.map((d) => (
@@ -125,14 +125,14 @@ const FinancialSettlement = () => {
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2.5 px-3 text-[#1F2933] text-sm focus:ring-2 focus:ring-gray-200 focus:border-gray-300 outline-none transition-all"
+              className="w-full bg-white border border-gray-200 rounded-lg py-2.5 px-3 text-[#1F2933] text-[13px] font-medium focus:ring-1 focus:ring-[#00C853] focus:border-[#00C853] outline-none transition-all shadow-sm"
             />
           </div>
           <button
             onClick={generateReport}
-            className="group relative px-5 py-2.5 bg-gradient-to-r from-[#1F2933] to-gray-700 text-white font-semibold rounded-xl flex items-center justify-center gap-2 transition-all hover:shadow-lg hover:shadow-gray-300/50"
+            className="group relative px-5 py-2.5 bg-[#00C853] hover:bg-[#00B248] text-white font-bold text-[13px] tracking-wide rounded-lg flex items-center justify-center gap-2 transition-all hover:shadow-lg shadow-sm shadow-[#00C853]/20"
           >
-            <Calculator size={18} />
+            <Calculator size={16} strokeWidth={2.5} />
             Check Reconciliation
           </button>
         </div>
@@ -168,8 +168,8 @@ const FinancialSettlement = () => {
                 ₹{report.totalUPI}
               </h4>
             </div>
-            <div className="bg-[#1F2933] p-5 rounded-2xl">
-              <p className="text-gray-300 text-xs font-medium mb-1">
+            <div className="bg-[#00C853] p-5 rounded-2xl">
+              <p className="text-white/80 text-xs font-medium mb-1">
                 Expected Collection
               </p>
               <h4 className="text-3xl font-bold text-white">
@@ -184,10 +184,10 @@ const FinancialSettlement = () => {
             <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
               <div className="p-4 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
                 <h3 className="text-base font-semibold text-[#1F2933] flex items-center gap-2">
-                  <IndianRupee size={18} className="text-emerald-500" /> Cash
+                  <IndianRupee size={18} className="text-[#00C853]" /> Cash
                   Transactions
                 </h3>
-                <span className="bg-emerald-50 text-emerald-600 text-xs font-medium px-2 py-1 rounded-lg">
+                <span className="bg-[#E8F5E9] text-[#00C853] text-[11px] font-bold tracking-wide px-2.5 py-1 rounded-full">
                   ₹{report.totalCash}
                 </span>
               </div>
@@ -232,7 +232,7 @@ const FinancialSettlement = () => {
                   <CreditCard size={18} className="text-blue-500" /> UPI
                   Transactions
                 </h3>
-                <span className="bg-blue-50 text-blue-600 text-xs font-medium px-2 py-1 rounded-lg">
+                <span className="bg-[#EBF5FF] text-[#3B82F6] text-[11px] font-bold tracking-wide px-2.5 py-1 rounded-full">
                   ₹{report.totalUPI}
                 </span>
               </div>
@@ -286,7 +286,7 @@ const FinancialSettlement = () => {
                 </p>
               </div>
             </div>
-            <button className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-medium rounded-xl transition-colors">
+            <button className="px-6 py-2 bg-[#00C853] hover:bg-[#00B248] shadow-sm shadow-[#00C853]/20 text-white font-bold text-[13px] tracking-wide rounded-lg transition-colors">
               Confirm Handover
             </button>
           </div>

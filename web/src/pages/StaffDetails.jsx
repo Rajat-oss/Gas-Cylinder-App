@@ -80,7 +80,7 @@ const Badge = ({ children, variant = "default", className = "" }) => {
     success: "bg-emerald-50 text-emerald-600",
     warning: "bg-amber-50 text-amber-600",
     info: "bg-blue-50 text-blue-600",
-    online: "bg-emerald-50 text-emerald-600",
+    online: "bg-[#E8F5E9] text-[#00C853] font-bold tracking-wide",
     offline: "bg-gray-100 text-gray-500",
     active: "bg-blue-50 text-blue-600",
     onfield: "bg-amber-50 text-amber-600",
@@ -108,11 +108,11 @@ const Button = ({
     "inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed";
   const variants = {
     primary:
-      "bg-slate-800 text-white hover:bg-slate-700 active:scale-[0.98] shadow-sm",
+      "bg-[#1F2933] text-white hover:bg-gray-800 active:scale-[0.98] shadow-sm shadow-gray-200",
     secondary:
-      "bg-white text-slate-700 border border-gray-200 hover:bg-gray-50 hover:border-gray-300 active:scale-[0.98]",
+      "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:border-gray-300 active:scale-[0.98] shadow-sm",
     success:
-      "bg-emerald-600 text-white hover:bg-emerald-500 active:scale-[0.98] shadow-sm",
+      "bg-[#00C853] text-white hover:bg-[#00B248] active:scale-[0.98] shadow-sm shadow-[#00C853]/20 font-bold tracking-wide",
     danger: "bg-red-50 text-red-600 hover:bg-red-100 active:scale-[0.98]",
   };
   return (
@@ -410,11 +410,11 @@ const StaffDetails = () => {
           <Card className="p-6">
             <div className="flex flex-col items-center text-center pb-6 border-b border-gray-100">
               <div className="relative mb-4">
-                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-slate-700 to-slate-500 flex items-center justify-center text-white font-bold text-2xl shadow-md">
+                <div className="w-20 h-20 rounded-2xl bg-[#1F2933] flex items-center justify-center text-white font-bold text-2xl shadow-md">
                   {member.name.charAt(0)}
                 </div>
                 <div
-                  className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-white ${member.status === "On Field" ? "bg-amber-500" : member.status === "Active" ? "bg-emerald-500" : "bg-gray-400"}`}
+                  className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-white ${member.status === "On Field" ? "bg-amber-500" : member.status === "Active" ? "bg-[#00C853]" : "bg-gray-400"}`}
                 />
               </div>
               <h3 className="text-lg font-semibold text-gray-800">
@@ -512,11 +512,11 @@ const StaffDetails = () => {
             </div>
 
             {/* Cash Collection */}
-            <div className="bg-gradient-to-br from-emerald-50 to-emerald-100/50 border border-emerald-100 rounded-xl p-4 mb-5">
-              <p className="text-xs font-medium text-emerald-600 uppercase tracking-wide mb-1">
+            <div className="bg-[#E8F5E9] border border-[#00C853]/20 rounded-xl p-4 mb-5">
+              <p className="text-[10px] font-bold text-[#00C853] uppercase tracking-wider mb-1">
                 Cash Today
               </p>
-              <h3 className="text-3xl font-semibold text-emerald-700">
+              <h3 className="text-3xl font-bold text-[#00C853]">
                 ₹{member.collection}
               </h3>
             </div>

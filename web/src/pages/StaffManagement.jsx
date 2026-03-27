@@ -301,11 +301,10 @@ const StaffManagement = () => {
         {user?.role === "ADMIN" && (
           <button
             onClick={() => handleOpenModal()}
-            className="group relative px-5 py-2.5 bg-gradient-to-r from-[#1F2933] to-gray-700 text-white font-semibold rounded-xl flex items-center gap-2 transition-all hover:shadow-lg hover:shadow-gray-300/50 active:scale-95"
+            className="px-5 py-2 bg-[#00C853] hover:bg-[#00B248] text-white font-bold text-[13px] tracking-wide rounded-lg flex items-center gap-1.5 transition-all hover:shadow-lg shadow-sm shadow-[#00C853]/20 active:scale-95"
           >
-            <span className="absolute inset-0 rounded-xl bg-gradient-to-r from-[#1F2933] to-gray-700 opacity-0 group-hover:opacity-100 transition-opacity"></span>
-            <Plus size={18} className="relative" />
-            <span className="relative">Add New Staff</span>
+            <Plus size={16} strokeWidth={3} />
+            <span>Add New Staff</span>
           </button>
         )}
       </div>
@@ -323,18 +322,18 @@ const StaffManagement = () => {
           <div className="relative flex-1 max-w-md">
             <Search
               className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              size={18}
+              size={16}
             />
             <input
               type="text"
               placeholder="Search by name or phone..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2.5 pl-10 pr-4 text-[#1F2933] placeholder-gray-400 focus:ring-2 focus:ring-gray-200 focus:border-gray-300 outline-none transition-all text-sm"
+              className="w-full bg-white border border-gray-200 rounded-lg py-2 pl-9 pr-4 text-[#1F2933] placeholder-gray-400 focus:ring-1 focus:ring-[#00C853] focus:border-[#00C853] outline-none transition-all text-[13px] font-medium shadow-sm"
             />
           </div>
-          <button className="flex items-center gap-2 bg-white border border-gray-200 text-gray-600 px-4 py-2.5 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-colors text-sm font-medium">
-            <Filter size={16} />
+          <button className="flex items-center gap-1.5 bg-white border border-gray-200 text-[#1F2933] px-4 py-2 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors text-[13px] font-bold tracking-wide shadow-sm">
+            <Filter size={14} strokeWidth={2.5} />
             <span>Filter</span>
           </button>
         </div>
@@ -343,7 +342,7 @@ const StaffManagement = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50/50 text-gray-500 text-xs font-semibold uppercase tracking-wide">
+              <tr className="border-b border-gray-200 bg-white text-gray-400 text-[10px] font-bold uppercase tracking-wider">
                 <th className="px-5 py-4">Name & Role</th>
                 <th className="px-5 py-4">Phone</th>
                 <th className="px-5 py-4">Status Today</th>
@@ -373,12 +372,12 @@ const StaffManagement = () => {
                             ID: {member.id.substring(0, 8)}
                           </span>
                           <span
-                            className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full tracking-wider ${
                               member.role === "ADMIN"
-                                ? "bg-red-50 text-red-600"
+                                ? "bg-red-50 text-red-500"
                                 : member.role === "MANAGER"
-                                  ? "bg-blue-50 text-blue-600"
-                                  : "bg-gray-100 text-gray-600"
+                                  ? "bg-purple-50 text-purple-500"
+                                  : "bg-[#EBF5FF] text-[#3B82F6]"
                             }`}
                           >
                             {member.role}
@@ -392,23 +391,14 @@ const StaffManagement = () => {
                   </td>
                   <td className="px-5 py-4">
                     <span
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
+                      className={`inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold tracking-wide ${
                         member.status === "On Field"
-                          ? "bg-blue-50 text-blue-600"
+                          ? "bg-[#EBF5FF] text-[#3B82F6]"
                           : member.status === "Active"
-                            ? "bg-emerald-50 text-emerald-600"
+                            ? "bg-[#E8F5E9] text-[#00C853]"
                             : "bg-gray-100 text-gray-500"
                       }`}
                     >
-                      <span
-                        className={`w-1.5 h-1.5 rounded-full ${
-                          member.status === "On Field"
-                            ? "bg-blue-500"
-                            : member.status === "Active"
-                              ? "bg-emerald-500"
-                              : "bg-gray-400"
-                        } ${member.status !== "Offline" ? "animate-pulse" : ""}`}
-                      ></span>
                       {member.status}
                     </span>
                   </td>
@@ -430,10 +420,10 @@ const StaffManagement = () => {
                           e.stopPropagation();
                           handleOpenTaskModal(member);
                         }}
-                        className="p-2 text-gray-400 hover:bg-emerald-50 hover:text-emerald-600 rounded-lg transition-all"
+                        className="p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 rounded-md transition-all"
                         title="Assign Task"
                       >
-                        <ClipboardList size={16} />
+                        <ClipboardList size={16} strokeWidth={2} />
                       </button>
                       {user?.role === "ADMIN" && (
                         <>
@@ -442,20 +432,20 @@ const StaffManagement = () => {
                               e.stopPropagation();
                               handleOpenModal(member);
                             }}
-                            className="p-2 text-gray-400 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-all"
+                            className="p-1.5 text-[#3B82F6] hover:bg-blue-50 rounded-md transition-all"
                             title="Edit"
                           >
-                            <Edit2 size={16} />
+                            <Edit2 size={16} strokeWidth={2} />
                           </button>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               handleDelete(member.id);
                             }}
-                            className="p-2 text-gray-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition-all"
+                            className="p-1.5 text-red-500 hover:bg-red-50 rounded-md transition-all"
                             title="Delete"
                           >
-                            <Trash2 size={16} />
+                            <Trash2 size={16} strokeWidth={2} />
                           </button>
                         </>
                       )}

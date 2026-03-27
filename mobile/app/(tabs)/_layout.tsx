@@ -1,56 +1,83 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { Platform } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { Colors } from '../../constants/Colors';
+
+function TabIcon({ name, focused, label }: { name: any; focused: boolean; label: string }) {
+    return (
+        <View style={[tabStyles.iconWrap, focused && tabStyles.iconWrapActive]}>
+            <Ionicons
+                name={focused ? name : `${name}-outline`}
+                size={20}
+                color={focused ? '#FFFFFF' : '#94A3B8'}
+            />
+        </View>
+    );
+}
+
+const tabStyles = StyleSheet.create({
+    iconWrap: {
+        width: 36,
+        height: 36,
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    iconWrapActive: {
+        backgroundColor: '#003087',
+        shadowColor: '#003087',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.4,
+        shadowRadius: 8,
+        elevation: 6,
+    },
+});
 
 export default function TabLayout() {
     return (
         <Tabs
             screenOptions={{
-                tabBarActiveTintColor: '#2563EB',
+                tabBarActiveTintColor: '#003087',
                 tabBarInactiveTintColor: '#94A3B8',
                 tabBarStyle: {
                     position: 'absolute',
                     backgroundColor: '#FFFFFF',
-                    borderTopWidth: 0,
-                    height: 70,
-                    paddingBottom: 10,
+                    borderTopWidth: 1,
+                    borderTopColor: '#F1F5F9',
+                    height: 72,
+                    paddingBottom: Platform.OS === 'ios' ? 12 : 10,
                     paddingTop: 10,
-                    paddingHorizontal: 16,
-                    marginHorizontal: 16,
-                    marginBottom: Platform.OS === 'ios' ? 20 : 16,
-                    borderRadius: 24,
+                    paddingHorizontal: 8,
+                    marginHorizontal: 0,
+                    marginBottom: 0,
+                    borderRadius: 0,
                     elevation: 12,
                     shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 6 },
-                    shadowOpacity: 0.1,
+                    shadowOffset: { width: 0, height: -4 },
+                    shadowOpacity: 0.06,
                     shadowRadius: 12,
                 },
                 tabBarLabelStyle: {
-                    fontSize: 11,
-                    fontWeight: '600',
-                    marginTop: 4,
+                    fontSize: 10,
+                    fontWeight: '700',
+                    marginTop: 2,
+                    letterSpacing: 0.3,
                 },
                 tabBarItemStyle: {
-                    paddingVertical: 4,
+                    paddingVertical: 2,
                 },
-                headerStyle: {
-                    backgroundColor: Colors.surface,
-                },
-                headerTitleStyle: {
-                    fontWeight: '700',
-                    color: Colors.text,
-                },
-                headerShadowVisible: false,
+                tabBarActiveBackgroundColor: 'transparent',
+                tabBarInactiveBackgroundColor: 'transparent',
+                headerShown: false,
             }}
         >
             <Tabs.Screen
                 name="index"
                 options={{
                     title: 'Dashboard',
-                    tabBarIcon: ({ color, focused }) => (
-                        <Ionicons name={focused ? "home" : "home-outline"} size={22} color={color} />
+                    tabBarIcon: ({ focused }) => (
+                        <TabIcon name="home" focused={focused} label="Dashboard" />
                     ),
                 }}
             />
@@ -58,8 +85,8 @@ export default function TabLayout() {
                 name="deliveries"
                 options={{
                     title: 'Deliveries',
-                    tabBarIcon: ({ color, focused }) => (
-                        <Ionicons name={focused ? "cube" : "cube-outline"} size={22} color={color} />
+                    tabBarIcon: ({ focused }) => (
+                        <TabIcon name="cube" focused={focused} label="Deliveries" />
                     ),
                 }}
             />
@@ -67,8 +94,8 @@ export default function TabLayout() {
                 name="summary"
                 options={{
                     title: 'Summary',
-                    tabBarIcon: ({ color, focused }) => (
-                        <Ionicons name={focused ? "bar-chart" : "bar-chart-outline"} size={22} color={color} />
+                    tabBarIcon: ({ focused }) => (
+                        <TabIcon name="bar-chart" focused={focused} label="Summary" />
                     ),
                 }}
             />
@@ -76,8 +103,8 @@ export default function TabLayout() {
                 name="profile"
                 options={{
                     title: 'Profile',
-                    tabBarIcon: ({ color, focused }) => (
-                        <Ionicons name={focused ? "person" : "person-outline"} size={22} color={color} />
+                    tabBarIcon: ({ focused }) => (
+                        <TabIcon name="person" focused={focused} label="Profile" />
                     ),
                 }}
             />

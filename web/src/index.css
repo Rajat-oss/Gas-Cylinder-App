@@ -60,11 +60,13 @@
   }
 
   @keyframes pulse-slow {
+
     0%,
     100% {
       opacity: 0.5;
       transform: scale(1);
     }
+
     50% {
       opacity: 0.8;
       transform: scale(1.05);
@@ -217,6 +219,7 @@ body {
    Touch-friendly button styles
    ============================ */
 @media (max-width: 768px) {
+
   button,
   .btn,
   [role="button"] {
@@ -229,7 +232,8 @@ body {
   select,
   textarea {
     min-height: 44px;
-    font-size: 16px !important; /* Prevents iOS zoom on focus */
+    font-size: 16px !important;
+    /* Prevents iOS zoom on focus */
   }
 }
 
@@ -251,6 +255,7 @@ body {
     transform: translateX(-100%);
     opacity: 0;
   }
+
   to {
     transform: translateX(0);
     opacity: 1;
@@ -261,6 +266,7 @@ body {
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }

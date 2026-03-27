@@ -75,9 +75,8 @@ const Sidebar = ({ onClose, isMobileOpen, collapsed, onToggleCollapse }) => {
 
   return (
     <div
-      className={`fixed left-0 top-0 h-screen bg-white flex flex-col z-50 transition-all duration-300 ease-in-out ${
-        collapsed ? "w-20" : "w-64"
-      }`}
+      className={`h-screen bg-white flex flex-col z-50 transition-all duration-300 ease-in-out border-r border-gray-100 ${collapsed ? "w-20" : "w-64"
+        }`}
       style={{
         boxShadow:
           "0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.03)",
@@ -85,21 +84,19 @@ const Sidebar = ({ onClose, isMobileOpen, collapsed, onToggleCollapse }) => {
     >
       {/* Header */}
       <div
-        className={`p-5 border-b border-gray-100 ${collapsed ? "px-4" : ""}`}
+        className={`p-5 xl:p-6 flex items-center gap-3 ${collapsed ? "justify-center px-4" : ""}`}
       >
+        <div className="w-10 h-10 rounded-xl bg-[#00C853] flex items-center justify-center shrink-0 shadow-md shadow-[#00C853]/20">
+          <span className="text-white font-black text-xl">G</span>
+        </div>
         {!collapsed && (
-          <>
-            <h1 className="text-xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
+          <div className="flex flex-col">
+            <h1 className="text-[19px] font-black text-[#1F2933] leading-tight tracking-tight uppercase">
               {user?.role === "MANAGER" ? "GasFlow" : "GasFlow"}
             </h1>
-            <p className="text-xs text-gray-400 mt-1 font-medium">
-              Delivery System
+            <p className="text-[11px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
+              Admin Panel
             </p>
-          </>
-        )}
-        {collapsed && (
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-800 to-slate-600 flex items-center justify-center">
-            <span className="text-white font-bold text-sm">GF</span>
           </div>
         )}
       </div>
@@ -107,9 +104,8 @@ const Sidebar = ({ onClose, isMobileOpen, collapsed, onToggleCollapse }) => {
       {/* Collapse Toggle Button */}
       <button
         onClick={onToggleCollapse}
-        className={`hidden lg:flex absolute -right-3 top-20 w-6 h-6 bg-white border border-gray-200 rounded-full items-center justify-center shadow-sm hover:bg-gray-50 transition-all duration-200 z-10 ${
-          collapsed ? "rotate-180" : ""
-        }`}
+        className={`hidden lg:flex absolute -right-3 top-20 w-6 h-6 bg-white border border-gray-200 rounded-full items-center justify-center shadow-sm hover:bg-gray-50 transition-all duration-200 z-10 ${collapsed ? "rotate-180" : ""
+          }`}
         style={{ boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)" }}
       >
         {collapsed ? (
@@ -120,7 +116,7 @@ const Sidebar = ({ onClose, isMobileOpen, collapsed, onToggleCollapse }) => {
       </button>
 
       {/* Navigation */}
-      <nav className="flex-1 mt-4 px-3 space-y-1 overflow-y-auto custom-scrollbar">
+      <nav className="flex-1 mt-4 px-3 space-y-1.5 overflow-y-auto custom-scrollbar">
         {filteredItems.map((item) => {
           const isActive = location.pathname === item.path;
           return (
@@ -128,34 +124,24 @@ const Sidebar = ({ onClose, isMobileOpen, collapsed, onToggleCollapse }) => {
               key={item.path}
               to={item.path}
               onClick={handleLinkClick}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative ${
-                isActive
-                  ? "bg-slate-100 text-slate-800"
-                  : "text-gray-500 hover:bg-gray-50 hover:text-slate-700"
-              }`}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group relative ${isActive
+                ? "bg-[#00C853] text-white shadow-md shadow-[#00C853]/20"
+                : "text-gray-500 hover:bg-gray-50 hover:text-[#1F2933]"
+                }`}
               title={collapsed ? item.name : undefined}
             >
-              {/* Active indicator */}
-              {isActive && (
-                <div
-                  className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-slate-800 rounded-r-full"
-                  style={{ boxShadow: "0 0 8px rgba(30, 41, 59, 0.3)" }}
-                />
-              )}
-
               <item.icon
                 size={20}
-                className={`flex-shrink-0 transition-colors duration-200 ${
-                  isActive
-                    ? "text-slate-800"
-                    : "text-gray-400 group-hover:text-slate-600"
-                }`}
+                strokeWidth={isActive ? 2.5 : 2}
+                className={`flex-shrink-0 transition-colors duration-200 ${isActive
+                  ? "text-white"
+                  : "text-gray-400 group-hover:text-[#1F2933]"
+                  }`}
               />
               {!collapsed && (
                 <span
-                  className={`font-medium text-sm truncate ${
-                    isActive ? "text-slate-800" : ""
-                  }`}
+                  className={`font-semibold text-[14px] tracking-wide truncate ${isActive ? "text-white font-bold" : ""
+                    }`}
                 >
                   {item.name}
                 </span>
@@ -167,26 +153,25 @@ const Sidebar = ({ onClose, isMobileOpen, collapsed, onToggleCollapse }) => {
 
       {/* User Profile Section */}
       <div
-        className={`p-4 border-t border-gray-100 ${collapsed ? "px-3" : ""}`}
+        className={`p-4 xl:p-5 border-t border-gray-100 ${collapsed ? "px-3" : ""}`}
       >
         <div
-          className={`flex items-center gap-3 p-2 rounded-xl hover:bg-gray-50 transition-colors duration-200 cursor-pointer ${
-            collapsed ? "justify-center" : ""
-          }`}
+          className={`flex items-center gap-3 p-2 rounded-xl hover:bg-gray-50 transition-colors duration-200 ${collapsed ? "justify-center" : ""
+            }`}
         >
           {/* Avatar */}
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-slate-700 to-slate-500 flex items-center justify-center flex-shrink-0">
-            <span className="text-white font-semibold text-xs">
+          <div className="w-10 h-10 rounded-full bg-[#00C853] flex items-center justify-center shrink-0 shadow-sm">
+            <span className="text-white font-bold text-sm">
               {getUserInitials()}
             </span>
           </div>
 
           {!collapsed && (
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-slate-700 truncate">
+              <p className="text-sm font-bold text-[#1F2933] truncate leading-tight">
                 {user?.name || (user?.role === "MANAGER" ? "Manager" : "Admin")}
               </p>
-              <p className="text-xs text-gray-400 truncate">
+              <p className="text-[12px] text-[#00C853] font-bold truncate mt-0.5">
                 {user?.role === "MANAGER" ? "Manager" : "Administrator"}
               </p>
             </div>
@@ -200,16 +185,16 @@ const Sidebar = ({ onClose, isMobileOpen, collapsed, onToggleCollapse }) => {
       >
         <button
           onClick={logout}
-          className={`flex items-center gap-3 w-full px-3 py-2.5 text-gray-500 hover:bg-red-50 hover:text-red-600 rounded-lg transition-all duration-200 group ${
-            collapsed ? "justify-center" : ""
-          }`}
+          className={`flex items-center gap-3 w-full px-3 py-2.5 text-gray-500 hover:bg-red-50 hover:text-red-500 rounded-xl transition-all duration-200 group ${collapsed ? "justify-center" : ""
+            }`}
           title={collapsed ? "Logout" : undefined}
         >
           <LogOut
             size={18}
-            className="flex-shrink-0 transition-colors duration-200 group-hover:scale-110"
+            strokeWidth={2.5}
+            className="flex-shrink-0 transition-colors duration-200"
           />
-          {!collapsed && <span className="font-medium text-sm">Logout</span>}
+          {!collapsed && <span className="font-semibold text-sm tracking-wide">Logout</span>}
         </button>
       </div>
     </div>
