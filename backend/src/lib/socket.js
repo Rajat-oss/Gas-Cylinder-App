@@ -9,7 +9,8 @@ const initSocket = (server) => {
                 'http://localhost:8081',
                 'http://10.0.2.2:8081',
                 /^exp:\/\/.*/, // Expo development
-                'https://gas-cylinder-app.onrender.com'
+                'https://gas-cylinder-app-six.vercel.app',
+                'https://gas-cylinder-app-one.vercel.app'
             ],
             methods: ['GET', 'POST'],
             credentials: true
