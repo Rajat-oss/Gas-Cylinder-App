@@ -112,13 +112,7 @@ const Login = () => {
           </button>
         </form>
 
-        {/* Demo Credentials Box */}
-        <div className="mt-8 p-4 bg-gray-50/80 rounded-lg border border-dashed border-gray-200 text-center">
-          <p className="text-xs text-gray-500 mb-1">Demo credentials:</p>
-          <p className="text-sm font-medium text-gray-600 tracking-tight">
-            admin@gasflow.online / admin123
-          </p>
-        </div>
+        
       </div>
 
       {/* Footer */}
