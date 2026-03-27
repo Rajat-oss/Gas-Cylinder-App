@@ -1,6 +1,9 @@
 import { io } from 'socket.io-client';
 
-const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://10.128.174.142:5000';
+const isDev = import.meta.env.DEV;
+const SOCKET_URL = isDev 
+    ? (import.meta.env.VITE_API_URL || 'http://localhost:5000')
+    : 'https://gas-cylinder-app.onrender.com';
 
 class SocketService {
     constructor() {
