@@ -38,7 +38,8 @@ app.use(cors({
         'http://localhost:5174',
         'http://127.0.0.1:5173',
         'http://localhost:8081',
-        'http://10.0.2.2:8081'
+        'http://10.0.2.2:8081',
+        'https://gas-cylinder-app-one.vercel.app/'
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
