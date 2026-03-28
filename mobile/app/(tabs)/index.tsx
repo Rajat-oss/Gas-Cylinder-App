@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
+    Animated,
+    AppState,
     RefreshControl,
     ScrollView,
     StatusBar,
@@ -18,6 +20,8 @@ import { Colors } from '../../constants/Colors';
 import { useAuth } from '../../context/AuthContext';
 import { useLocation } from '../../context/LocationContext';
 import { deliveryService } from '../../services/deliveryService';
+import { updateOnlineStatus } from '../../services/api';
+import { showOnlineNotification, dismissOnlineNotification } from '../../services/notificationService';
 import { routingService } from '../../services/routingService';
 import socketService from '../../services/socket';
 
@@ -28,6 +32,21 @@ export default function DashboardScreen() {
     const [refreshing, setRefreshing] = useState(false);
     const [deliveries, setDeliveries] = useState<any[]>([]);
     const [isOnline, setIsOnline] = useState(true);
+    const isOnlineRef = useRef(true);
+    const heartbeatRef = useRef<any>(null);
+    const toastAnim = useRef(new Animated.Value(0)).current;
+    const [toastMsg, setToastMsg] = useState<{ text: string; online: boolean } | null>(null);
+    const toastTimer = useRef<any>(null);
+
+    const showToast = (online: boolean) => {
+        setToastMsg({ text: online ? "You're Online Now 🟢" : "You're Offline Now 🔴", online });
+        clearTimeout(toastTimer.current);
+        Animated.sequence([
+            Animated.spring(toastAnim, { toValue: 1, useNativeDriver: true, speed: 20 }),
+            Animated.delay(2500),
+            Animated.timing(toastAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
+        ]).start(() => setToastMsg(null));
+    };
     const [activeDestination, setActiveDestination] = useState<{ latitude: number, longitude: number } | null>(null);
     const [routeCoords, setRouteCoords] = useState<any[]>([]);
     const [socketConnected, setSocketConnected] = useState(false);
@@ -103,6 +122,53 @@ export default function DashboardScreen() {
         };
     }, [user?.id, fetchData]);
 
+    // Online status — backend sync + heartbeat + AppState
+    const handleToggleOnline = async (value: boolean) => {
+        isOnlineRef.current = value;
+        setIsOnline(value);
+        showToast(value);
+        if (value) {
+            showOnlineNotification(user?.name || 'Driver');
+        } else {
+            dismissOnlineNotification();
+        }
+        try {
+            await updateOnlineStatus(value);
+        } catch (e) { /* silent */ }
+
+        if (value) {
+            // Start heartbeat every 60s to keep lastSeen fresh
+            heartbeatRef.current = setInterval(() => {
+                if (isOnlineRef.current && user?.id) {
+                    socketService.emit('heartbeat', { driverId: user.id });
+                    updateOnlineStatus(true).catch(() => {});
+                }
+            }, 60000);
+        } else {
+            clearInterval(heartbeatRef.current);
+        }
+    };
+
+    useEffect(() => {
+        if (!user) return;
+        // Go online when dashboard mounts
+        handleToggleOnline(true);
+
+        // AppState — app background/foreground pe online state maintain karo
+        const sub = AppState.addEventListener('change', (state) => {
+            if (state === 'active' && isOnlineRef.current) {
+                // App foreground aaya, agar online tha to lastSeen refresh karo
+                updateOnlineStatus(true).catch(() => {});
+            }
+            // background/inactive pe offline mat karo — sirf toggle se hoga
+        });
+
+        return () => {
+            sub.remove();
+            clearInterval(heartbeatRef.current);
+        };
+    }, [user?.id]);
+
     const onRefresh = React.useCallback(async () => {
         if (!user) return;
         setRefreshing(true);
@@ -121,6 +187,7 @@ export default function DashboardScreen() {
     const totalEarnings = stats.cash + stats.upi;
 
     return (
+        <View style={{ flex: 1 }}>
         <SafeAreaView style={styles.container} edges={['bottom']}>
             <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
             <ScrollView
@@ -149,7 +216,7 @@ export default function DashboardScreen() {
                             <Text style={styles.onlineLabel}>{isOnline ? 'Online' : 'Offline'}</Text>
                             <Switch
                                 value={isOnline}
-                                onValueChange={setIsOnline}
+                                onValueChange={handleToggleOnline}
                                 trackColor={{ false: '#CC0000', true: '#007A3D' }}
                                 thumbColor={'#FFFFFF'}
                                 style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
@@ -320,6 +387,22 @@ export default function DashboardScreen() {
                 </View>
             </ScrollView>
         </SafeAreaView>
+
+            {/* Toast — outside SafeAreaView so it floats on top */}
+            {toastMsg && (
+                <Animated.View style={[
+                    styles.toast,
+                    { backgroundColor: toastMsg.online ? '#007A3D' : '#CC0000' },
+                    {
+                        opacity: toastAnim,
+                        transform: [{ translateY: toastAnim.interpolate({ inputRange: [0, 1], outputRange: [-80, 0] }) }]
+                    }
+                ]}>
+                    <Ionicons name={toastMsg.online ? 'wifi' : 'wifi-outline'} size={20} color="#fff" />
+                    <Text style={styles.toastText}>{toastMsg.text}</Text>
+                </Animated.View>
+            )}
+        </View>
     );
 }
 
@@ -772,5 +855,28 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.3,
         shadowRadius: 16,
         elevation: 8,
+    },
+    toast: {
+        position: 'absolute',
+        top: 55,
+        alignSelf: 'center',
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        paddingHorizontal: 20,
+        paddingVertical: 16,
+        borderRadius: 18,
+        zIndex: 9999,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.25,
+        shadowRadius: 16,
+        elevation: 20,
+    },
+    toastText: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#FFFFFF',
+        letterSpacing: 0.2,
     },
 });

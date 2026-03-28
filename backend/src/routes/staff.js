@@ -92,6 +92,26 @@ router.get('/', authenticateToken, authorizeRoles('ADMIN', 'MANAGER'), async (re
     }
 });
 
+// Update online status (Driver/Staff self-update)
+router.patch('/status', authenticateToken, async (req, res) => {
+    try {
+        const { isOnline } = req.body;
+        await prisma.user.update({
+            where: { id: req.user.id },
+            data: {
+                isOnline,
+                lastSeen: new Date()
+            }
+        });
+        const { getIO } = require('../lib/socket');
+        getIO().emit('driverStatusUpdate', { driverId: req.user.id, isOnline });
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Status update error:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
 // Add new staff (Admin Only)
 router.post('/', authenticateToken, authorizeRoles('ADMIN'), async (req, res) => {
     try {

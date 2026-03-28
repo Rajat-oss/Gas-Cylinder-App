@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 import api from '../services/api';
+import { dismissOnlineNotification } from '../services/notificationService';
 import { storage } from '../services/storage';
 
 interface User {
@@ -31,6 +32,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const router = useRouter();
 
     useEffect(() => {
+        // Wake up Render backend immediately (prevents cold start delay)
+        api.get('/../../health').catch(() => {});
+
         async function checkAuth() {
             const storedToken = await storage.getItem('token');
             const storedUser = await storage.getItem('user');
@@ -87,6 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await storage.deleteItem('user');
         setToken(null);
         setUser(null);
+        dismissOnlineNotification();
         
         // Navigate to login immediately
         router.replace('/(auth)/login' as any);

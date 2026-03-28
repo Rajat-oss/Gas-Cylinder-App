@@ -22,6 +22,18 @@ const initSocket = (server) => {
     io.on('connection', (socket) => {
         console.log('Client connected:', socket.id);
 
+        // Driver heartbeat — keeps lastSeen fresh while online
+        socket.on('heartbeat', async ({ driverId }) => {
+            if (!driverId) return;
+            try {
+                const prisma = require('./prisma');
+                await prisma.user.updateMany({
+                    where: { id: driverId, isOnline: true },
+                    data: { lastSeen: new Date() }
+                });
+            } catch (e) { /* silent */ }
+        });
+
         socket.on('error', (error) => {
             console.error('Socket error:', error);
         });

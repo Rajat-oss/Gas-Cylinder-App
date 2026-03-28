@@ -2,7 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
     Alert,
     FlatList,
     RefreshControl,
@@ -24,7 +23,6 @@ export default function DeliveriesScreen() {
     const router = useRouter();
     const { user } = useAuth();
     const [deliveries, setDeliveries] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [selectedFilter, setSelectedFilter] = useState('All');
     const insets = useSafeAreaInsets();
@@ -50,27 +48,12 @@ export default function DeliveriesScreen() {
                 setDeliveries([]);
                 return;
             }
-            setLoading(true);
             const data = await deliveryService.getDeliveries();
             const myDeliveries = data.filter(d => d.assignedStaffId === user?.id);
             setDeliveries(mapDeliveryData(myDeliveries));
         } catch (error: any) {
-            if (!user) {
-                console.log('Skipping error alert - user logged out');
-                return;
-            }
+            if (!user) return;
             console.error('Fetch deliveries error:', error);
-            let errorMessage = 'Failed to load deliveries';
-
-            if (error.response?.status === 401) {
-                errorMessage = 'Session expired. Please login again.';
-            } else if (!error.response) {
-                errorMessage = 'Network error. Please check your connection.';
-            }
-
-            Alert.alert('Error', errorMessage);
-        } finally {
-            setLoading(false);
         }
     }, [user?.id]);
 
@@ -155,7 +138,7 @@ export default function DeliveriesScreen() {
                 <Ionicons name="cube-outline" size={44} color="#94A3B8" />
             </View>
             <Text style={styles.emptyTitle}>No Deliveries Found</Text>
-            <Text style={styles.emptySubtitle}>You're all caught up for today!</Text>
+            <Text style={styles.emptySubtitle}>Pull down to refresh</Text>
         </View>
     );
 
@@ -174,18 +157,6 @@ export default function DeliveriesScreen() {
         'Delivered': deliveries.filter(d => d.deliveryStatus === 'Delivered').length,
         'Cancelled': deliveries.filter(d => d.deliveryStatus === 'Cancelled').length,
     };
-
-    if (loading) {
-        return (
-            <SafeAreaView style={styles.container} edges={['bottom']}>
-                <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
-                <View style={styles.loaderContainer}>
-                    <ActivityIndicator size="large" color={Colors.primary} />
-                    <Text style={styles.loadingText}>Loading deliveries...</Text>
-                </View>
-            </SafeAreaView>
-        );
-    }
 
     return (
         <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -264,6 +235,18 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#F1F5F9',
     },
+    loaderContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 12,
+    },
+    loadingText: {
+        fontSize: 14,
+        color: Colors.textLight,
+        fontWeight: '600',
+    },
+
     loaderContainer: {
         flex: 1,
         justifyContent: 'center',
