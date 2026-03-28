@@ -15,19 +15,20 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     let intervalId;
     if (user) {
-      // Send a ping immediately if user exists
-      api.post('/auth/ping').catch(err => console.error('Ping failed', err));
+      // Send a ping immediately if user exists to mark as online
+      // We use a separate effect for interval to avoid restarting it on every user object reference change
+      const sendPing = () => api.post('/auth/ping').catch(() => {});
+      
+      sendPing();
       
       // Ping every 60 seconds to maintain real-time online status
-      intervalId = setInterval(() => {
-        api.post('/auth/ping').catch(() => {});
-      }, 60000);
+      intervalId = setInterval(sendPing, 60000);
     }
     
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
-  }, [user]);
+  }, [user?.id]); // Only re-run if the user ID changes, not on every object update
 
   const login = async (email, password) => {
     const response = await api.post('/auth/login', { email, password });

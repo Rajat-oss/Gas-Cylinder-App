@@ -22,13 +22,13 @@ const PORT = process.env.PORT || 5002;
 // Basic rate limiting
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // limit each IP to 100 requests per windowMs
+    max: 1000, // limit each IP to 1000 requests per windowMs
     message: 'Too many requests, please try again later.'
 });
 
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 5, // limit each IP to 5 login attempts per windowMs
+    max: 15, // limit each IP to 15 login attempts per windowMs
     message: 'Too many login attempts, please try again later.'
 });
 
