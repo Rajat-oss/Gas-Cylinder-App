@@ -15,50 +15,56 @@ const { createServer } = require('http');
 const { initSocket } = require('./lib/socket');
 
 const app = express();
+app.set('trust proxy', 1); // Required for Render and rate limiting behind proxies
 const httpServer = createServer(app);
 const io = initSocket(httpServer);
 const PORT = process.env.PORT || 5002;
-
-// Basic rate limiting
-const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 1000, // limit each IP to 1000 requests per windowMs
-    message: 'Too many requests, please try again later.'
-});
-
-const authLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 15, // limit each IP to 15 login attempts per windowMs
-    message: 'Too many login attempts, please try again later.'
-});
 
 const allowedOrigins = [
     'http://localhost:5173',
     'http://localhost:5174',
     'http://127.0.0.1:5173',
     'http://localhost:8081',
-    'http://10.0.2.2:8081'
+    'http://10.0.2.2:8081',
+    'https://gas-cylinder-app-9glu.vercel.app'
 ];
 
+// Basic rate limiting
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 1000,
+    message: 'Too many requests, please try again later.',
+    skip: (req) => req.method === 'OPTIONS',
+});
+
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 15,
+    message: 'Too many login attempts, please try again later.',
+    skip: (req) => req.method === 'OPTIONS',
+});
+
+// Enable CORS before other global middlewares
 app.use(cors({
     origin: (origin, callback) => {
-        // Allow requests with no origin (like mobile apps or curl)
         if (!origin) return callback(null, true);
         
-        const isAllowedLocal = allowedOrigins.includes(origin);
-        const isVercel = origin.endsWith('.vercel.app') || origin === 'https://vercel.app';
+        const normalizedOrigin = origin.toLowerCase();
+        const isAllowedLocal = allowedOrigins.some(o => normalizedOrigin.includes(o.toLowerCase()));
+        const isVercel = normalizedOrigin.includes('.vercel.app') || normalizedOrigin === 'https://vercel.app';
         
         if (isAllowedLocal || isVercel) {
             callback(null, true);
         } else {
-            console.log('Blocked by CORS:', origin);
-            callback(new Error('Not allowed by CORS'));
+            console.error('[CORS Blocked]:', origin);
+            callback(new Error(`Origin ${origin} not allowed by CORS`));
         }
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
+
 app.use(limiter);
 
 app.use(express.json({ limit: '10mb' }));
