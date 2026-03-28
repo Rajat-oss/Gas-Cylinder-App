@@ -10,7 +10,7 @@ const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://gas-cylinder-app.on
 // NOTE: Backend routes use /api prefix
 const api = axios.create({
     baseURL: `${BASE_URL}/api`,
-    timeout: 15000,
+    timeout: 30000,
     headers: {
         'Content-Type': 'application/json',
     }
@@ -58,5 +58,8 @@ api.interceptors.response.use(
         return Promise.reject(error);
     }
 );
+
+export const updateOnlineStatus = (isOnline: boolean) =>
+    api.patch('/staff/status', { isOnline });
 
 export default api;

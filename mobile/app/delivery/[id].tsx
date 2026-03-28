@@ -3,7 +3,6 @@ import * as Linking from 'expo-linking';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
     Alert,
     KeyboardAvoidingView,
     Platform,
@@ -32,7 +31,6 @@ const DeliveryDetailScreen = () => {
     const insets = useSafeAreaInsets();
     const { location: driverLoc } = useLocation();
     const [delivery, setDelivery] = useState<Delivery | null>(null);
-    const [loading, setLoading] = useState(true);
     const [paymentMode, setPaymentMode] = useState<'Cash' | 'UPI' | null>(null);
     const [amount, setAmount] = useState('');
     const [txnId, setTxnId] = useState('');
@@ -55,7 +53,6 @@ const DeliveryDetailScreen = () => {
                 if (item) {
                     setDelivery(item);
                     setAmount(item.amount ? item.amount.toString() : (item.quantity ? (item.quantity * 800).toString() : '800'));
-                    setLoading(false);
 
                     const parsedLat = Number(item.latitude);
                     const parsedLng = Number(item.longitude);
@@ -67,12 +64,9 @@ const DeliveryDetailScreen = () => {
                             if (dest) setDestinationLoc(dest);
                         });
                     }
-                } else {
-                    setLoading(false);
                 }
             } catch (err) {
                 console.error('Session Init Error:', err);
-                setLoading(false);
             }
         };
         initializeSession();
@@ -185,7 +179,7 @@ const DeliveryDetailScreen = () => {
                         <View style={{ flex: 1, marginLeft: 12 }}>
                             <Text style={styles.heroEyebrow}>DISPATCH TRACKING</Text>
                             <Text style={styles.heroTitle} numberOfLines={1}>
-                                {loading ? 'Loading...' : (delivery?.customerName || 'Delivery Task')}
+                                {delivery?.customerName || 'Delivery Task'}
                             </Text>
                         </View>
                         {delivery && (
@@ -199,64 +193,74 @@ const DeliveryDetailScreen = () => {
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
                 >
-                    {/* Show inline loader while data fetches — page/hero stays visible */}
-                    {(loading || !delivery) ? (
-                        <View style={styles.inlineLoader}>
-                            <ActivityIndicator size="large" color={Colors.primary} />
-                            <Text style={styles.loadingText}>Loading delivery details...</Text>
+                {/* ── MAP CARD — renders immediately, no data wait ── */}
+                <View style={styles.mapCard}>
+                    <View style={styles.mapHeader}>
+                        <View style={styles.liveIndicator}>
+                            <View style={[styles.dot, { backgroundColor: isNavigating ? '#10B981' : '#F59E0B' }]} />
+                            <Text style={styles.liveText}>{isNavigating ? 'LIVE ROUTING' : 'FLEET TRACKER'}</Text>
                         </View>
-                    ) : (
-                    <>
-                    {/* ── MAP CARD ── */}
-                    <View style={styles.mapCard}>
-                        <View style={styles.mapHeader}>
-                            <View style={styles.liveIndicator}>
-                                <View style={[styles.dot, { backgroundColor: isNavigating ? '#10B981' : '#F59E0B' }]} />
-                                <Text style={styles.liveText}>{isNavigating ? 'LIVE ROUTING' : 'FLEET TRACKER'}</Text>
-                            </View>
-                            <Text style={styles.distanceText}>
-                                {isNavigating ? `${routeCoords.length} route points` : 'Syncing nearest path...'}
-                            </Text>
-                        </View>
-                        <View style={styles.mapPlaceholder}>
-                            <AppMap
-                                mapRef={mapRef}
-                                driverLoc={isNavigating ? driverLoc : null}
-                                destinationLoc={destinationLoc}
-                                routeCoords={isNavigating ? routeCoords : []}
-                                onMapReady={() => setMapReady(true)}
-                            />
-                            <TouchableOpacity
-                                style={styles.recenterBtn}
-                                onPress={() => {
-                                    if (isNavigating && driverLoc && mapRef.current && Platform.OS !== 'web') {
-                                        mapRef.current.animateToRegion({ ...driverLoc, latitudeDelta: 0.01, longitudeDelta: 0.01 });
-                                    } else if (destinationLoc && mapRef.current && Platform.OS !== 'web') {
-                                        mapRef.current.animateToRegion({ ...destinationLoc, latitudeDelta: 0.01, longitudeDelta: 0.01 });
-                                    }
-                                }}
-                            >
-                                <Ionicons name="locate" size={20} color="#FFFFFF" />
-                            </TouchableOpacity>
-                        </View>
-
-                        {(delivery.status === 'PENDING' || delivery.status === 'OUT_FOR_DELIVERY') && (
-                            <TouchableOpacity
-                                style={[styles.navBtn, { backgroundColor: isNavigating ? '#059669' : Colors.primary }]}
-                                onPress={handleStartNavigation}
-                                activeOpacity={0.88}
-                            >
-                                <Ionicons
-                                    name={isNavigating ? 'navigate' : 'navigate-outline'}
-                                    size={18}
-                                    color="#FFFFFF"
-                                />
-                                <Text style={styles.navBtnText}>
-                                    {delivery.status === 'PENDING' ? 'Start GPS Navigation' : 'Reroute Navigation'}
-                                </Text>
-                            </TouchableOpacity>
-                        )}
+                        <Text style={styles.distanceText}>
+                            {isNavigating ? `${routeCoords.length} route points` : 'GPS Active'}
+                        </Text>
                     </View>
+                    <View style={styles.mapPlaceholder}>
+                        <AppMap
+                            mapRef={mapRef}
+                            driverLoc={driverLoc}
+                            destinationLoc={destinationLoc}
+                            routeCoords={isNavigating ? routeCoords : []}
+                            onMapReady={() => setMapReady(true)}
+                        />
+                        <TouchableOpacity
+                            style={styles.recenterBtn}
+                            onPress={() => {
+                                if (driverLoc && mapRef.current && Platform.OS !== 'web') {
+                                    mapRef.current.animateToRegion({ ...driverLoc, latitudeDelta: 0.01, longitudeDelta: 0.01 });
+                                } else if (destinationLoc && mapRef.current && Platform.OS !== 'web') {
+                                    mapRef.current.animateToRegion({ ...destinationLoc, latitudeDelta: 0.01, longitudeDelta: 0.01 });
+                                }
+                            }}
+                        >
+                            <Ionicons name="locate" size={20} color="#FFFFFF" />
+                        </TouchableOpacity>
+                    </View>
+
+                    {delivery && (delivery.status === 'PENDING' || delivery.status === 'OUT_FOR_DELIVERY') && (
+                        <TouchableOpacity
+                            style={[styles.navBtn, { backgroundColor: isNavigating ? '#059669' : '#003087' }]}
+                            onPress={handleStartNavigation}
+                            activeOpacity={0.88}
+                        >
+                            <Ionicons
+                                name={isNavigating ? 'navigate' : 'navigate-outline'}
+                                size={18}
+                                color="#FFFFFF"
+                            />
+                            <Text style={styles.navBtnText}>
+                                {delivery.status === 'PENDING' ? 'Start GPS Navigation' : 'Reroute Navigation'}
+                            </Text>
+                        </TouchableOpacity>
+                    )}
+
+                    {destinationLoc && (
+                        <TouchableOpacity
+                            style={styles.letsGoBtn}
+                            onPress={() => {
+                                const { latitude: lat, longitude: lng } = destinationLoc;
+                                Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`);
+                            }}
+                            activeOpacity={0.88}
+                        >
+                            <Ionicons name="logo-google" size={18} color="#FFFFFF" />
+                            <Text style={styles.navBtnText}>Let's Go 🚀</Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
+
+                    {/* Delivery details — loads after API */}
+                    {delivery && (
+                    <>
 
                     {/* ── CUSTOMER DETAILS ── */}
                     <View style={styles.sectionHeader}>
@@ -565,6 +569,16 @@ const styles = StyleSheet.create({
         fontWeight: '800',
         color: '#FFFFFF',
         letterSpacing: 0.3,
+    },
+    letsGoBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        marginTop: 10,
+        borderRadius: 16,
+        paddingVertical: 14,
+        backgroundColor: '#16A34A',
     },
 
     // Section labels
