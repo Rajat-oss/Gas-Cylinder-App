@@ -1,6 +1,6 @@
 import axios from 'axios';
+//  header
 
-const isDev = import.meta.env.DEV;
 const api = axios.create({
   baseURL: ${import.meta.env.VITE_API_URL || 'https://gas-cylinder-app.onrender.com'}/api,
  headers: {
